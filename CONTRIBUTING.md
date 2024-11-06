@@ -55,7 +55,7 @@ python3 -m http.server --directory 'docs/_build/html'
 
 ## Code Contributions
 
-Details of the code architecture can be found in the [developer's guide](#).
+Details of the code architecture can be found in the [developer's guide](https://climb-ai.readthedocs.io/devguide).
 
 ### Submit an issue
 
@@ -75,6 +75,7 @@ or [Miniconda]:
 ```
 conda create -n climb-dev python=3.9
 conda activate climb-dev
+conda install anaconda::pango
 ```
 
 ### Clone the repository
