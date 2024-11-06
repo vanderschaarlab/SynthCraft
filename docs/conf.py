@@ -77,6 +77,7 @@ extensions = [
     "sphinx.ext.ifconfig",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinx_inline_tabs",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -89,6 +90,7 @@ extensions.append("myst_parser")
 # Configure MyST-Parser
 myst_enable_extensions = [
     "amsmath",
+    "attrs_inline",
     "colon_fence",
     "deflist",
     "dollarmath",
@@ -184,6 +186,7 @@ html_theme = "furo"
 html_theme_options = {
     "light_logo": "climb-logo.png",
     "dark_logo": "climb-logo-light.png",
+    "sidebar_hide_name": True,
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
