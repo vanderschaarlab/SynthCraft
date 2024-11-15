@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 import streamlit_antd_components as sac
 
+from climb.common.disclaimer import DISCLAIMER_TEXT
 from climb.common.exc import EXC_DOCS_REFS
 
 try:
@@ -36,7 +37,6 @@ from climb.db import DB
 from climb.db.tinydb_db import TinyDB_DB
 from climb.engine import (
     MODEL_CONTEXT_SIZE,
-    PRIVACY_MODE_PARAMETER_DESCRIPTION,
     CodeExecFinishedSentinel,
     CodeExecReturn,
     EngineBase,
@@ -828,19 +828,16 @@ def rerun_with_state(state: Optional[InteractionStage] = None) -> None:
     st.rerun()
 
 
-@st.dialog(modal_disclaimer_title)
+@st.dialog(modal_disclaimer_title, width="large")
 def modal_disclaimer():
     st.markdown(
-        dedent(f"""
-        **⚠️ Data security and privacy**
-        {PRIVACY_MODE_PARAMETER_DESCRIPTION}
-
-        **ℹ️ Reliability and correctness**
-
-        The AI language model is not perfect, and it may make mistakes. At times, it may mistakenly "make up" some
-        information, or fail to copy values exactly. It is critical to verify all steps and results.
-        """)
+        DISCLAIMER_TEXT.replace("# Disclaimer:\n", ""),  # Remove the title line, as it's already in the modal title.
     )
+    user_settings.disclaimer_shown = True
+    db.update_user_settings(user_settings)
+    # Add an "Accept" button to close the modal.
+    if st.button("Accept", type="primary"):
+        st.rerun()
 
 
 @st.dialog(modal_settings_title)
@@ -918,7 +915,7 @@ with top_col_buttons:
     c1, c2, _ = st.columns([1.5, 1.5, 9])
 
     with c1:
-        if st.button(modal_disclaimer_title, type="primary"):
+        if user_settings.disclaimer_shown is False or st.button(modal_disclaimer_title, type="primary"):
             modal_disclaimer()
     with c2:
         if st.button(modal_settings_title):

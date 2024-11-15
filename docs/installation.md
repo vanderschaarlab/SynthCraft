@@ -1,4 +1,17 @@
 # 📦 Installation
+
+```{admonition} Warning
+:class: attention
+
+Please read the [🔏 Data Privacy](dataprivacy.md) section before proceeding with this step, in order to understand whether CliMB is compatible with your data and use case.
+```
+
+```{admonition} Installation on company/organization systems
+:class: seealso
+
+It is common within organizations to have certain restrictions on installing software on their systems, or to impose some restricions on accessible URLs through VPNs or firewalls. If you are facing such restrictions when trying to install CliMB by following the steps below, please ask your IT department for assistance.
+```
+
 In order to use CliMB, you need to accomplish the following three steps:
 1. [🐍 Set up the `conda` environments](#set-up-the-conda-environments)
 2. [🔑 Obtain the API keys for the third-party LLM](#obtain-the-api-keys-for-the-third-party-llm)
@@ -10,7 +23,7 @@ In order to use CliMB, you need to accomplish the following three steps:
 ## 1. 🐍 Set up the `conda` environments
 
 CliMB uses [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/getting-started.html) to manage the Python environments. Before installing CliMB, you need to set up two `conda` environments as follows.
-1. If you do not have `conda` ("Anaconda") installed on your system, you should install the [`miniconda`]((https://docs.anaconda.com/free/miniconda/)) distribution by following the appropriate instructions below.
+1. If you do not have `conda` ("Anaconda") installed on your system, you should install the [`miniconda`](https://docs.anaconda.com/free/miniconda/) distribution by following the appropriate instructions below.
     ```{tab} Windows
     * Follow the [Installing on Windows](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html) guide.
     * We recommed you use the ["Miniconda" installer](https://docs.anaconda.com/miniconda/).
@@ -31,6 +44,8 @@ CliMB uses [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/g
     :class: tip
 
     If you are not familiar with running commands in a terminal (a.k.a. command prompt, command line interface etc.), please see this tip box for a quick overview of the appropriate terminal to use on your operating system. The commands shown in CliMB documentation should work with the terminals described here.
+
+    **Note:** these are terminal commands, and **not** Python shell (REPL) commands.
 
     You do not need to type in the comment lines, e.g. `# Create the environment:`, these are for your information only.
 
@@ -100,7 +115,7 @@ CliMB uses [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/g
 ```{admonition} Warning
 :class: attention
 
-Please read the [🔏 Data Privacy](overview.md#data-privacy) section before proceeding with this step, in order to make an informed decision about which LLM provider is suitable for your use case.
+Please read the [🔏 Data Privacy](dataprivacy.md) section before proceeding with this step, in order to make an informed decision about which LLM provider is suitable for your use case.
 ```
 
 CliMB currently supports the following third-party LLM providers:
@@ -156,7 +171,9 @@ Please select between the tabs ("OpenAI", "Azure OpenAI Service" etc.) below to 
     ```
 3. Finally, you need to set up the configuration file for the LLM provider you chose.
     * Copy the [Example `.env`](https://github.com/vanderschaarlab/climb/tree/main/config_examples/.env) file to the **repo directory**.
-    On Windows you may wish to rename it to `keys.env` to avoid the file being hidden / extension confusion.
+    Note that it should be placed directly inside the `climb` folder, **not** inside any subfolder; please see the end of this subsection below
+    to check what your repo directory should contain at the end of the configuration process. On Windows you may wish to rename this file to `keys.env`
+    to avoid the file being hidden / extension confusion.
 
     * Configure CliMB to work with the LLM provider you chose by following the instructions in the appropriate tab below.
     ```{tab} OpenAI
@@ -219,6 +236,8 @@ Please select between the tabs ("OpenAI", "Azure OpenAI Service" etc.) below to 
     tox.ini
     ```
 
+
+
 (updating-climb)=
 ## 📦⬆️ Updating CliMB
 
@@ -235,3 +254,19 @@ To update to the latest version of CliMB, navigate to the **repo directory**, th
     # Update the package:
     pip install -U -e .
     ```
+
+
+(system-requirements)=
+## 🖥️ System Requirements
+
+CliMB is compatible with Windows, MacOS, and Linux operating systems.
+
+CliMB and the tools it uses can work on a range of hardware configurations, but we recommend the following rough minimum
+requirements for a smooth experience:
+* a CPU with at least 4 cores,
+* 16GB of RAM,
+* NVIDIA GPU with at least 4GB of memory (not strictly necessary, but recommended for much faster performance).
+
+Better hardware will provide a more performant experience, especially when working with large datasets or complex models.
+
+Particularly large datasets will push the RAM and GPU RAM requirements higher, so please keep this in mind when working with your data.
