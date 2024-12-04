@@ -753,6 +753,9 @@ def run_markdown_css_hack() -> None:
     div .stChatMessage [data-stale="true"] button {
         display: none;
     }
+    div .stChatMessage .stExpander:has([data-stale="true"]) {
+        display: none;
+    }
 
     /* Chat box, make it fixed height. */
     section.main > div.block-container {
