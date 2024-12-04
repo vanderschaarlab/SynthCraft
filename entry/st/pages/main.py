@@ -1856,6 +1856,9 @@ def execute_tool(tool_request) -> None:
 def handle_user_input() -> None:
     ui_log("ui_state == 'await_user_input'")
 
+    if engine().simulated_user:
+        rerun_with_state(state="reason")
+
     if engine().get_state().ui_controlled.input_request is None:
         ui_log("In main_flow > ui_state == 'await_user_input' > input_request is None [= Chat INPUT]")
         # CASE: Simple chat message input.
@@ -1956,9 +1959,13 @@ def handle_reason_stream() -> None:
     if stream is not None:
         # ui_log("In main_flow > stream is not None")
         spinner_message = "Responding..."
+        ui_kind = "assistant"
         if engine().get_state().agent == "coordinator":
             spinner_message = "Planning..."
-        with st.chat_message("assistant"):
+        if engine().get_state().agent == "simulated_user":
+            spinner_message = "Simulated user typing..."
+            ui_kind = "user"
+        with st.chat_message(ui_kind):
             placeholder = st.empty()
             try:
                 with placeholder.container():

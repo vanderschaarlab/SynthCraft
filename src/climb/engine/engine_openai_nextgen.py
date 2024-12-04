@@ -3199,6 +3199,24 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
     def get_all_worker_messages(self) -> List[Message]:
         return [m for m in self.get_message_history() if m.agent in ("worker", "supervisor")]
 
+    def _reset_engine_state_after_api_call(self) -> None:
+        # Reset the engine state after an API call is made.
+        worker_state = d2m(self.session.engine_state.agent_state["worker"], WorkerState)
+        coordinator_state = d2m(self.session.engine_state.agent_state["coordinator"], CoordinatorState)
+        self.session.engine_state = EngineState(
+            streaming=True,
+            # Do not reset agent:
+            agent=self.session.engine_state.agent,
+            agent_switched=False,
+            agent_state={
+                # We do not need to reset anything in the coordinator state.
+                "coordinator": m2d(coordinator_state),
+                # We do not need to reset anything in the worker state.
+                "worker": m2d(worker_state),
+            },
+            ui_controlled=UIControlledState(),
+        )
+
     def _llm_call(self, messages: List[Message], tools: ToolSpecs) -> StreamLike:
         # Some sanity checks:
         if not messages:
@@ -3245,21 +3263,7 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
         tool_call_content: Dict[str, Any] = {"content": None, "role": "assistant", "tool_calls": {}}
 
         # Reset the engine state.
-        worker_state = d2m(self.session.engine_state.agent_state["worker"], WorkerState)
-        coordinator_state = d2m(self.session.engine_state.agent_state["coordinator"], CoordinatorState)
-        self.session.engine_state = EngineState(
-            streaming=True,
-            # Do not reset agent:
-            agent=self.session.engine_state.agent,
-            agent_switched=False,
-            agent_state={
-                # We do not need to reset anything in the coordinator state.
-                "coordinator": m2d(coordinator_state),
-                # We do not need to reset anything in the worker state.
-                "worker": m2d(worker_state),
-            },
-            ui_controlled=UIControlledState(),
-        )
+        self._reset_engine_state_after_api_call()
 
         chunk_tracker = ChunkTracker()
         for chunk in stream:

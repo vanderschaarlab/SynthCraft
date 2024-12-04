@@ -37,7 +37,7 @@ MessageVisibility = Literal["all", "ui_only", "llm_only", "llm_only_ephemeral", 
 # - "system_only": Message is given only to the system (system being this tool, for its internal use,
 #   e.g. for handling things like code execution.)
 
-Agent = Literal["coordinator", "worker", "supervisor"]
+Agent = Literal["coordinator", "worker", "supervisor", "simulated_user"]
 
 ToolSpecs = Union[List[Dict[str, Any]], None]
 

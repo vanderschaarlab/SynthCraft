@@ -244,6 +244,7 @@ class EngineBase(abc.ABC):
         self.session = session
 
         self.conda_path = conda_path
+        self.simulated_user = False
 
         self._new_session = not self.session.messages
 
