@@ -1,144 +1,181 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pydantic
 
 from climb.common import (
     Agent,
     EngineState,
+    KeyGeneration,
     Message,
     Session,
     ToolSpecs,
 )
-from climb.common.utils import d2m, m2d
+from climb.common.utils import d2m, m2d, update_templates
 from climb.db import DB
 
 from ._azure_config import AzureOpenAIConfig
 from ._engine import EngineAgent
 from ._engine_openai import AzureOpenAIEngineMixin
-from .engine_openai_nextgen import MESSAGE_OPTIONS, OpenAINextGenEngine, filter_messages_by_agent
+from .engine_openai_nextgen import (
+    MESSAGE_OPTIONS,
+    OpenAINextGenEngine,
+)
 
 # region: === Prompt templates ===
 
-# SIMULATED_USER_SYSTEM_MESSAGE = f"""
-# You are acting as a HUMAN USER of a system where a user interacts with an AI assistant.
+WD_CONTENTS_REPLACE_MARKER = "{WD_CONTENTS}"
+SIMULATED_USER_ACTUAL_TASK_REPLACE_MARKER = "{SIMULATED_USER_ACTUAL_TASK}"
 
-# The COORDINATOR has a plan for the overall project, and you are responsible for working with the user on part of this \
-# (your TASK).
+SIMULATED_USER_LOG_PREAMBLE = "HERE IS THE LOG OF THE CONVERSATION SO FAR"
+SIMULATED_USER_CONTINUE_INDICATOR = "CONTINUE YOUR CONVERSATION FROM HERE"
 
-# ### Record of the conversations
-# You will receive the full record of the conversations between other agents and the user so far, so you can pick up \
-# where they left off. You should use that conversation record to inform your work on the TASK.
+SIMULATED_USER_RULES = """
+1. Remember: you are not an AI assistant, but a (simulated) human user!
+2. You must respond as if you are a human user, with capabilities as described.
+3. Do not do anything that exceeds the knowledge, capabilities, or role of a human user. The more you are like a human \
+user, with the described capabilities, the better.
+4. Review the conversation so far, and continue it as if you were the human user.
+5. Only the AI assistant(s) you interact with are able to generate code or use tools. You cannot do this!
+"""
 
-# The record of conversations will look similar to this EXAMPLE:
-# system: {LOG_PREAMBLE}
-# assistant: What is your favorite cuisine?
-# user: Italian.
-# assistant: What is your favorite Italian dish?
-# user: Spaghetti Carbonara.
-# assistant: {TASK_COMPLETED_INDICATOR}
-# system: {CONTINUE_INDICATOR}.
+# TODO: This needs to be made customizable.
+SIMULATED_USER_CAPABILITIES = """
+You are a human, with the following background:
+- You are a clinician with a dataset of patient records.
+- The dataset is in CSV format, in a file named "heart.csv".
+- Each row in the dataset represents a patient.
+- Each column in the dataset represents a feature of the patient.
+- The dataset contains information about heart disease.
+- The target column you want to predict is "HeartDisease" and contains binary values (0 or 1).
+"""
 
-# NOTE: If you are the first agent to work on the project, you will NOT receive the conversation record.
+SIMULATED_USER_EXAMPLES = f"""
+#### Example:
 
+- Given a conversation log like this:
 
-# ### Your CAPABILITIES
-# {WORKER_CAPABILITIES}
+system: {SIMULATED_USER_LOG_PREAMBLE}
+assistant: I would like to find out your culinary preferences.
+user: Okay.
+assistant: What is your favorite Italian dish?
+system: {SIMULATED_USER_CONTINUE_INDICATOR}.
 
+- You would continue the conversation like this:
 
-# ### Your RULES: You must follow these EXACTLY and NEVER violate them.
-# {WORKER_RULES}
+Spaghetti Carbonara.
 
-# ### EXAMPLES
-# * These show how you should go about your work.
-# * These are EXAMPLES ONLY. NOT the actual problem!
-# * The actual TASK is given in the "Your TASK" section later.
+"""
 
-# === EXAMPLES ===
-# {WORKER_EXAMPLES}
-# === END of EXAMPLES ===
+SIMULATED_USER_SYSTEM_MESSAGE = f"""
+You are acting as a HUMAN USER of a system where a user interacts with AI assistant(s).
 
-
-# ### CURRENT WORKING DIRECTORY CONTENTS (for your information, do not send this to the user):
-# ```text
-# {WD_CONTENTS_REPLACE_MARKER}
-# ```
-
-
-# ================================================================================
-# ### Your TASK
-# Your TASK, given by the COORDINATOR is:
-
-# {WORKER_ACTUAL_TASK_REPLACE_MARKER}
-
-# ================================================================================
+You have a specific task to complete, which is given below. Work with the AI assistant(s) to complete this task.
 
 
-# ===============
-# VERY IMPORTANT:
-# - Remember, the previous agents have ALREADY COMPLETED their work steps! Do NOT REDO their work. Start from where \
-# they left off!
-# - DO NOT work on anything beyond what is asked in the TASK. You must however, make sure that the specific TASK is \
-# completed fully and correctly, and issue the {TASK_COMPLETED_INDICATOR} message.
-# - Always refer to CURRENT WORKING DIRECTORY CONTENTS to see which files are available to you!
-# ===============
-# """
+### Record of the conversations
+You will receive the full record of the conversations between you and AI assistant(s).
 
-# WORKER_STARTING_MESSAGE = f"""
-# Now please start with your task.
+The record of conversations will look similar to this EXAMPLE:
+system: {SIMULATED_USER_LOG_PREAMBLE}
+assistant: What is your favorite cuisine?
+user: Italian.
+assistant: What is your favorite Italian dish?
+user: Spaghetti Carbonara.
+assistant: What is your favorite dessert?
+system: {SIMULATED_USER_CONTINUE_INDICATOR}.
 
-# Unless you are the first agent, you will receive the conversation record to help you pick up where they left off.
+NOTE: Your past responses are shown as "user" messages. You will need to continue the conversation.
 
-# Remember:
-# 1. Do NOT restart with asking for the user's data UNLESS you're the first agent whose task is to do so.
-# 2. The previous agents have already completed their work steps. Do NOT REDO their work.
-# 3. Your first message to the user MUST briefly explain what you plan to do and seek confirmation from the user. \
-# Do NOT jump straight into using a tool or generating code! If the COORDINATOR has instructed you to minimize user \
-# interaction, SKIP this.
-# 4. If the work looks like it is moving to a task mentioned in "{TASKS_PLANNED_AFTER}", STOP and issue \
-# {TASK_COMPLETED_INDICATOR}. The coordinator and the next agent will pick up from there. Generally avoid going into \
-# the tasks listed under "{TASKS_PLANNED_AFTER}".
-# 5. Check "CURRENT WORKING DIRECTORY CONTENTS" carefully and keep track of the files that have been created so far.
-# """
 
-# WORKER_REMINDER = f"""
-# **Reminder!**
-# 1. Where is my task description?
-#     - Your TASK is given in the first system message, but here is a reminder:
-#     ================================================================================
-#     ### Your TASK
-#     {WORKER_ACTUAL_TASK_REPLACE_MARKER}
-#     ================================================================================
-# 2. When to mark my task as completed?
-#     - Check that you are not proceeding beyond the subtasks you have been given!
-#     - Check the list of SUBTASKS given to you in the system message.
-#     - Check the list of "{TASKS_PLANNED_AFTER}" in the system message.
-#     - Are you in danger of getting into the "{TASKS_PLANNED_AFTER}" tasks?
-#     - If so, just issue the {TASK_COMPLETED_INDICATOR}.
-#     **But - IF THERE ARE ERRORS!**
-#     - If some subtask you are executing is raising an error, you SHOULD try to make it work.
-#     - If there is an error that you can fix, DO NOT issue the {TASK_COMPLETED_INDICATOR}.
-#     - Attempt to fix the error, which often involves generating some code.
-#     - Investigate the possible reasons for failure step by step. Generate code that could help you debug the issue.
-#     - Then generate code that could help you fix the issue.
-#     - If after several attempts you CANNOT make it work, you can issue the {TASK_COMPLETED_INDICATOR}.
-# 3. Code generation:
-#     - Do not write any text after the code section. The code section must be the last part of your message.
-#     - NEVER issue more than one code snippet in a single message.
-#     - Do not overwrite any existing files in the working directory, always create new files with unique names.
-#         * Even if you are doing a slight modification to a file, save the modified file with a new name!
-#         * Adding a suffix like v2, v3 can work.
-#         * E.g. if you are slightly modifying "data_processed.csv", save the modified file as "data_processed_v2.csv".
-# """
+### Your CAPABILITIES
+{SIMULATED_USER_CAPABILITIES}
+
+
+### Your RULES: You must follow these EXACTLY and NEVER violate them.
+{SIMULATED_USER_RULES}
+
+### EXAMPLES
+* These show how you should go about your work.
+* These are EXAMPLES ONLY. NOT the actual problem!
+* The actual TASK is given in the "Your TASK" section later.
+
+=== EXAMPLES ===
+{SIMULATED_USER_EXAMPLES}
+=== END of EXAMPLES ===
+
+
+### CURRENT WORKING DIRECTORY CONTENTS:
+```text
+{WD_CONTENTS_REPLACE_MARKER}
+```
+
+
+================================================================================
+### Your TASK
+Your specific task is:
+
+{SIMULATED_USER_ACTUAL_TASK_REPLACE_MARKER}
+
+================================================================================
+"""
+
+SIMULATED_USER_REMINDER = f"""
+**Reminder!**
+1. Where is my task description?
+    - Your TASK is given in the first system message, but here is a reminder:
+    ================================================================================
+    ### Your TASK
+    {SIMULATED_USER_ACTUAL_TASK_REPLACE_MARKER}
+    ================================================================================
+2. Make sure to follow the following rules:
+    ================================================================================
+    ### Rules
+    {SIMULATED_USER_RULES}
+    ================================================================================
+"""
 
 MESSAGE_OPTIONS["simulated_user"] = {
-    "system_message_template": "You are a clinician with a dataset test.csv. You want to predict the column 'label'.",
-    "first_message_content": "",
+    "system_message_template": SIMULATED_USER_SYSTEM_MESSAGE,
+    "record_preamble": SIMULATED_USER_LOG_PREAMBLE,
+    "record_continuation": SIMULATED_USER_CONTINUE_INDICATOR,
+    "reminder": SIMULATED_USER_REMINDER,
 }
 
 # endregion
 
 
 # region: === Engine helper functions (may be considered for moving to a separate module) ===
+
+
+def get_messages_like(messages: List[Message], like: Callable[[Message], bool]) -> List[Message]:
+    found_messages = []
+    for message in messages:
+        if like(message):
+            found_messages.append(message)
+    return found_messages
+
+
+# User-visible worker messages, tool and code execution messages,
+# and simulated user messages that are not system messages.
+def _simulated_user_message_history(m: Message) -> bool:
+    return (
+        # User-visible worker messages:
+        (
+            m.agent == "worker"
+            and m.visibility in ("all", "ui_only")
+            # Including tool and code execution messages:
+            and m.role in ("assistant", "tool", "code_execution")
+        )
+        or
+        # Simulated user messages:
+        (
+            m.agent == "simulated_user"
+            and
+            # Not system messages:
+            m.role != "system"
+        )
+    )
+
 
 # endregion
 
@@ -199,14 +236,78 @@ class OpenAINextGenEngineSim(OpenAINextGenEngine):
         return self.session.engine_state
 
     def _gather_messages_simulated_user(self, agent: EngineAgent) -> Tuple[List[Message], ToolSpecs]:
-        simulated_user_messages = filter_messages_by_agent(self.get_message_history(), agent.agent_type)
+        messages_to_process = []
+
+        historic_messages = get_messages_like(self.get_message_history(), like=_simulated_user_message_history)
+
+        # Just re-generate the initial system message for the simulated user.
+        system_message_text = update_templates(
+            body_text=agent.system_message_template,
+            templates={
+                WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
+            },
+        )
+        system_message = Message(
+            key=KeyGeneration.generate_message_key(),
+            role="system",
+            visibility="llm_only",
+            new_reasoning_cycle=True,  # NOTE: Not relevant for simulated user.
+            text=system_message_text,
+            agent=agent.agent_type,
+        )
+
+        tools = []  # No tools for simulated user.
+
+        # Structure the messages to process.
+
+        # [system]
+        messages_to_process.append(system_message)
+
+        if not historic_messages:
+            raise ValueError("No historic messages found for simulated user, but are required.")
+
+        # <separator>
+        messages_to_process.append(
+            # NOTE: This is a FULLY EPHEMERAL message, not stored in the DB.
+            Message(
+                key=KeyGeneration.generate_message_key(),
+                role="system",
+                text=MESSAGE_OPTIONS["simulated_user"]["record_preamble"],
+                agent=agent.agent_type,
+            )
+        )
+        # [historic record]
+        messages_to_process.extend(historic_messages)
+        # <separator>
+        messages_to_process.append(
+            # NOTE: This is a FULLY EPHEMERAL message, not stored in the DB.
+            Message(
+                key=KeyGeneration.generate_message_key(),
+                role="system",
+                text=MESSAGE_OPTIONS["simulated_user"]["record_continuation"],
+                agent=agent.agent_type,
+            )
+        )
+
         print("=" * 80)
-        print(simulated_user_messages)
+        import rich.pretty
+
+        rich.pretty.pprint(messages_to_process)
         print("=" * 80)
-        return simulated_user_messages, []
+        # raise ValueError("STOP HERE")
+
+        return messages_to_process, tools
 
     def _dispatch_simulated_user(self, agent: EngineAgent) -> EngineState:
         self.session.engine_state.user_message_requested = False
+
+        self.session.engine_state.agent_switched = True
+        self.session.engine_state.agent = "worker"
+
+        # There shouldn't be a need to update worker state here, as it is unchanged.
+
+        self.update_state()
+
         return self.session.engine_state
 
     def define_agents(self) -> Dict[Agent, EngineAgent]:
@@ -233,8 +334,8 @@ class OpenAINextGenEngineSim(OpenAINextGenEngine):
             simulated_user=EngineAgent(
                 "simulated_user",
                 system_message_template=MESSAGE_OPTIONS["simulated_user"]["system_message_template"],
-                first_message_content=MESSAGE_OPTIONS["simulated_user"]["first_message_content"],
-                first_message_role="user",
+                first_message_content=None,
+                first_message_role=None,
                 set_initial_messages=OpenAINextGenEngineSim._set_initial_messages,  # type: ignore
                 gather_messages=OpenAINextGenEngineSim._gather_messages_simulated_user,  # type: ignore
                 dispatch=OpenAINextGenEngineSim._dispatch_simulated_user,  # type: ignore

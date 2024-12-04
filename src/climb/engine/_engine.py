@@ -213,8 +213,8 @@ class EngineAgent:
         self,
         agent_type: Agent,
         system_message_template: str,
-        first_message_content: str,
-        first_message_role: Role,
+        first_message_content: Optional[str],
+        first_message_role: Optional[Role],
         # -- --- ---
         # Callables - assign Engine methods to these. Note the parameters.
         # <method>(self, agent) -> <return_type>

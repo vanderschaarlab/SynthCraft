@@ -2610,16 +2610,22 @@ class OpenAINextGenEngine(OpenAIEngineBase):
                 new_reasoning_cycle=True,
                 text=system_message_text,
                 agent=agent.agent_type,
-            ),
-            Message(
-                key=KeyGeneration.generate_message_key(),
-                role=agent.first_message_role,
-                text=agent.first_message_content,
-                agent=agent.agent_type,
-                visibility="llm_only_ephemeral",
-                engine_state=self.session.engine_state,
-            ),
+            )
         ]
+        if agent.first_message_content is not None:
+            assert (
+                agent.first_message_role is not None
+            ), "First message role must be set if first message content is set."
+            initial_messages.append(
+                Message(
+                    key=KeyGeneration.generate_message_key(),
+                    role=agent.first_message_role,
+                    text=agent.first_message_content,
+                    agent=agent.agent_type,
+                    visibility="llm_only_ephemeral",
+                    engine_state=self.session.engine_state,
+                )
+            )
         tree_helpers.append_multiple_messages_to_end_of_tree(self.session.messages, initial_messages)
 
         self.db.update_session(self.session)

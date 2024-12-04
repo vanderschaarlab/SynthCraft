@@ -290,6 +290,12 @@ class OpenAIEngineBase(EngineBase):
         last_message_tool_call_content: Optional[Dict[str, Any]],
         agent: Agent,
     ) -> None:
+        # TODO: This should be refactored to be in a more sensible place.
+        if agent == "simulated_user":
+            use_role = "user"
+        else:
+            use_role = "assistant"
+
         if chunk_tracker.processing_required():
             if not last_message_is_tool_call:
                 if last_message_text_chunks is None:
@@ -299,7 +305,7 @@ class OpenAIEngineBase(EngineBase):
                     self._append_message(
                         Message(
                             key=KeyGeneration.generate_message_key(),
-                            role="assistant",
+                            role=use_role,
                             text=message,
                             agent=agent,
                             engine_state=self.session.engine_state,
@@ -334,7 +340,7 @@ class OpenAIEngineBase(EngineBase):
                 self._append_message(
                     Message(
                         key=KeyGeneration.generate_message_key(),
-                        role="assistant",
+                        role=use_role,
                         text=None,
                         visibility="llm_only",
                         incoming_tool_calls=incoming_tool_calls,
