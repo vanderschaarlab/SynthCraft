@@ -37,6 +37,8 @@ SIMULATED_USER_RULES = """
 user, with the described capabilities, the better.
 4. Review the conversation so far, and continue it as if you were the human user.
 5. Only the AI assistant(s) you interact with are able to generate code or use tools. You cannot do this!
+6. Check the last few messages and ask yourself: "Am I repeating myself?", "Is the conversation looping unnaturally?". \
+Humans don't do that. Hence, you MUST break this loop. Ask a question, provide a new piece of information, rephrase, etc.
 """
 
 # TODO: This needs to be made customizable.
