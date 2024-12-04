@@ -22,12 +22,6 @@ ENGINE_MAP = {
     # Current engines:
     OpenAINextGenEngine.get_engine_name(): OpenAINextGenEngine,
     AzureOpenAINextGenEngine.get_engine_name(): AzureOpenAINextGenEngine,
-    # ---
-    # Simulated user engines:
-    OpenAINextGenEngineSim.get_engine_name(): OpenAINextGenEngineSim,
-    AzureOpenAINextGenEngineSim.get_engine_name(): AzureOpenAINextGenEngineSim,
-    # ---
-    # Add more here...
 }
 
 if dotenv_config.get("BASELINE_METHODS", "False") == "True":
@@ -43,8 +37,8 @@ if dotenv_config.get("SIMULATED_USER_METHODS", "False") == "True":
     ENGINE_MAP.update(
         {
             # Minimal baseline versions:
-            OpenAIMinBaselineEngine.get_engine_name(): OpenAIMinBaselineEngine,
-            AzureOpenAIMinBaselineEngine.get_engine_name(): AzureOpenAIMinBaselineEngine,
+            OpenAINextGenEngineSim.get_engine_name(): OpenAINextGenEngineSim,
+            AzureOpenAINextGenEngineSim.get_engine_name(): AzureOpenAINextGenEngineSim,
         }
     )
 

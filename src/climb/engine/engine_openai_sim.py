@@ -130,10 +130,10 @@ from .engine_openai_nextgen import MESSAGE_OPTIONS, OpenAINextGenEngine, filter_
 #         * E.g. if you are slightly modifying "data_processed.csv", save the modified file as "data_processed_v2.csv".
 # """
 
-# MESSAGE_OPTIONS["simulated_user"] = {
-#     "system_message_template": "You are a clinician with a dataset test.csv. You want to predict the column 'label'.",
-#     "first_message_content": "",
-# }
+MESSAGE_OPTIONS["simulated_user"] = {
+    "system_message_template": "You are a clinician with a dataset test.csv. You want to predict the column 'label'.",
+    "first_message_content": "",
+}
 
 # endregion
 
