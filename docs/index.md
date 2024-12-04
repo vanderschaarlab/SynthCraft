@@ -15,6 +15,7 @@ Installation <installation>
 Quickstart Guide <quickstart>
 Troubleshooting <troubleshooting>
 FAQ <faq>
+Tools Reference <tool>
 Contributing Guide <contributing>
 Developer's Guide <devguide>
 License <license>
