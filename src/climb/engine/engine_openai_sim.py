@@ -7,6 +7,7 @@ from climb.common import (
     EngineState,
     KeyGeneration,
     Message,
+    ResponseKind,
     Session,
     ToolSpecs,
 )
@@ -141,6 +142,12 @@ MESSAGE_OPTIONS["simulated_user"] = {
     "reminder": SIMULATED_USER_REMINDER,
 }
 
+# TODO: Needs to be "settable".
+SIMULATED_USER_ACTUAL_TASK = """
+Your task is to work with the AI assistant to create and investigate a predictive model \
+for heart disease using the dataset in the file 'heart.csv'.
+"""
+
 # endregion
 
 
@@ -162,7 +169,12 @@ def _simulated_user_message_history(m: Message) -> bool:
         # User-visible worker messages:
         (
             m.agent == "worker"
-            and m.visibility in ("all", "ui_only")
+            and (
+                m.visibility in ("all", "ui_only")
+                or
+                # Needed to include the tool request messages - otherwise OpenAI API will complain.
+                m.incoming_tool_calls is not None
+            )
             # Including tool and code execution messages:
             and m.role in ("assistant", "tool", "code_execution")
         )
@@ -219,7 +231,11 @@ class OpenAINextGenEngineSim(OpenAINextGenEngine):
     def _dispatch_worker(self, agent: EngineAgent) -> EngineState:
         engine_state = super()._dispatch_worker(agent)
 
-        if self.session.engine_state.user_message_requested is True:
+        if (
+            self.session.engine_state.user_message_requested is True
+            and self.session.engine_state.response_kind == ResponseKind.TEXT_MESSAGE
+        ):
+
             engine_state.agent_switched = True
             engine_state.agent = "simulated_user"
 
@@ -245,6 +261,7 @@ class OpenAINextGenEngineSim(OpenAINextGenEngine):
             body_text=agent.system_message_template,
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
+                SIMULATED_USER_ACTUAL_TASK_REPLACE_MARKER: SIMULATED_USER_ACTUAL_TASK,
             },
         )
         system_message = Message(
@@ -288,6 +305,26 @@ class OpenAINextGenEngineSim(OpenAINextGenEngine):
                 agent=agent.agent_type,
             )
         )
+
+        # Reminder message.
+        reminder_message_text = update_templates(
+            body_text=MESSAGE_OPTIONS["simulated_user"]["reminder"],
+            templates={
+                SIMULATED_USER_ACTUAL_TASK_REPLACE_MARKER: SIMULATED_USER_ACTUAL_TASK,
+            },
+        )
+        reminder_message = Message(
+            key=KeyGeneration.generate_message_key(),
+            role="system",
+            text=reminder_message_text,
+            agent=agent.agent_type,
+            visibility="llm_only_ephemeral",
+            engine_state=self.session.engine_state,
+        )
+        # TODO: Investigate the below line.
+        self._append_message(reminder_message)  # Add to history.
+        messages_to_process.append(reminder_message)  # And add to list of messages to send to LLM straight away too.
+        # Reminder message [END].
 
         print("=" * 80)
         import rich.pretty

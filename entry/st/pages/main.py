@@ -1857,94 +1857,125 @@ def handle_user_input() -> None:
     ui_log("ui_state == 'await_user_input'")
 
     if engine().simulated_user:
-        rerun_with_state(state="reason")
-
-    if engine().get_state().ui_controlled.input_request is None:
-        ui_log("In main_flow > ui_state == 'await_user_input' > input_request is None [= Chat INPUT]")
-        # CASE: Simple chat message input.
-        user_input = user_input_box(disabled=False)
-
-        # HACK --- --- ---
-        js_input_placeholder = st_common.JSExecutor(
-            js_code=dedent("""
-                console.log("Executing js_input_placeholder...");
-
-                // Find the textarea element with the specific aria-label attribute
-                let textarea = parent.document.querySelector('textarea[aria-label="Type your message here..."]');
-
-                // Check if the textarea element exists, and then insert the input placeholder into it
-                if (textarea) {
-                    // Focus on the textarea element
-                    textarea.focus();
-                    
-                    // A timeout needed for the update to actually happen.
-                    setTimeout(() => {
-                        // Insert the text into the textarea
-                        textarea.value = "<input_placeholder>";
-                        textarea.focus();
-                    }, 625);
-                           
-                    console.log("Inserted input placeholder value into the chat input box.");
-                } else {
-                    console.log("Could not find chat input box.");
-                }
-                """),
-            container=container_tab_js,
-            use_st_js=True,
-            log_text="js_input_placeholder",
-        )
-        input_placeholder = engine().get_state().ui_controlled.input_placeholder
-        if input_placeholder is not None:
-            input_placeholder = input_placeholder.replace("\n", " ").replace("\r", " ")
-            try:
-                js_input_placeholder.execute_js(replacements={"<input_placeholder>": input_placeholder})
-            except Exception as e:
-                ui_log("Failed to insert input placeholder into the chat input box:", e)
-        # HACK (end) --- --- ---
-
-        print("user_input", user_input)
-        if user_input:
-            engine().ingest_user_input(user_input)
+        ui_log("In main_flow > ui_state == 'await_user_input' > SIMULATED USER")
+        if engine().get_state().ui_controlled.input_request is None:
+            ui_log(
+                "In main_flow > ui_state == 'await_user_input' > SIMULATED USER > input_request is None [= Chat INPUT]"
+            )
+            # Go into the reasoning stage to allow the simulated user to respond.
+            rerun_with_state(state="reason")
         else:
-            # NOTE: Why st.stop()? It seems otherwise streamlit tends to take the input as None
-            # and continue running, breaking the flow.
-            st.stop()
-
-        rerun_with_state(state="reason")
-
-    else:
-        print("[UI]>>> In main_flow > ui_state == 'await_user_input' > input_request is not None [= Tool call INPUT]")
-        # CASE: Tool input request.
-        input_request = engine().get_state().ui_controlled.input_request
-        if input_request is None:
-            raise ValueError("Input request was None")
-        user_input_box(disabled=True)
-
-        if input_request.kind == "file":
-            file_types = input_request.extra["file_types"]
-            with st.chat_message("assistant"):
-                st_uploaded_file = st.file_uploader(
-                    input_request.description or "",
-                    accept_multiple_files=False,
-                    type=file_types,
-                )
-
-            print("st_uploaded_file:", st_uploaded_file)
-            if st_uploaded_file is not None:
+            print(
+                "[UI]>>> In main_flow > ui_state == 'await_user_input' > "
+                "SIMULATED USER > input_request is not None [= Tool call INPUT]"
+            )
+            input_request = engine().get_state().ui_controlled.input_request
+            if input_request.kind == "file":
+                DUMMY_FILE_PATH = "/mnt/data-fourtb/Dropbox/Work/21. vdS Lab/2. Projects/10. CliMB/4. Data/heart.csv"
+                file_name = os.path.basename(DUMMY_FILE_PATH)
+                # Read the file as bytes.
+                with open(DUMMY_FILE_PATH, "rb") as f:
+                    file_content = f.read()
+                # TODO: Handle simulated user file uploads.
                 input_request.received_input = UploadedFileAbstraction(
-                    name=st_uploaded_file.name,  # type: ignore
-                    content=st_uploaded_file.getvalue(),  # type: ignore
+                    name=file_name,  # type: ignore
+                    content=file_content,  # type: ignore
                 )
                 engine().get_state().ui_controlled.input_request = input_request
                 engine().update_state()
             else:
+                raise NotImplementedError("Only file uploads are supported at the moment")
+
+            rerun_with_state(state="output")  # --> to tool call step (again).
+    else:
+        if engine().get_state().ui_controlled.input_request is None:
+            ui_log("In main_flow > ui_state == 'await_user_input' > input_request is None [= Chat INPUT]")
+            # CASE: Simple chat message input.
+            user_input = user_input_box(disabled=False)
+
+            # HACK --- --- ---
+            js_input_placeholder = st_common.JSExecutor(
+                js_code=dedent("""
+                    console.log("Executing js_input_placeholder...");
+
+                    // Find the textarea element with the specific aria-label attribute
+                    let textarea = parent.document.querySelector('textarea[aria-label="Type your message here..."]');
+
+                    // Check if the textarea element exists, and then insert the input placeholder into it
+                    if (textarea) {
+                        // Focus on the textarea element
+                        textarea.focus();
+                        
+                        // A timeout needed for the update to actually happen.
+                        setTimeout(() => {
+                            // Insert the text into the textarea
+                            textarea.value = "<input_placeholder>";
+                            textarea.focus();
+                        }, 625);
+                            
+                        console.log("Inserted input placeholder value into the chat input box.");
+                    } else {
+                        console.log("Could not find chat input box.");
+                    }
+                    """),
+                container=container_tab_js,
+                use_st_js=True,
+                log_text="js_input_placeholder",
+            )
+            input_placeholder = engine().get_state().ui_controlled.input_placeholder
+            if input_placeholder is not None:
+                input_placeholder = input_placeholder.replace("\n", " ").replace("\r", " ")
+                try:
+                    js_input_placeholder.execute_js(replacements={"<input_placeholder>": input_placeholder})
+                except Exception as e:
+                    ui_log("Failed to insert input placeholder into the chat input box:", e)
+            # HACK (end) --- --- ---
+
+            print("user_input", user_input)
+            if user_input:
+                engine().ingest_user_input(user_input)
+            else:
                 # NOTE: Why st.stop()? It seems otherwise streamlit tends to take the input as None
                 # and continue running, breaking the flow.
                 st.stop()
-        else:
-            raise NotImplementedError("Only file uploads are supported at the moment")
 
-        rerun_with_state(state="output")  # --> to tool call step (again).
+            rerun_with_state(state="reason")
+
+        else:
+            print(
+                "[UI]>>> In main_flow > ui_state == 'await_user_input' > input_request is not None [= Tool call INPUT]"
+            )
+            # CASE: Tool input request.
+            input_request = engine().get_state().ui_controlled.input_request
+            if input_request is None:
+                raise ValueError("Input request was None")
+            user_input_box(disabled=True)
+
+            if input_request.kind == "file":
+                file_types = input_request.extra["file_types"]
+                with st.chat_message("assistant"):
+                    st_uploaded_file = st.file_uploader(
+                        input_request.description or "",
+                        accept_multiple_files=False,
+                        type=file_types,
+                    )
+
+                print("st_uploaded_file:", st_uploaded_file)
+                if st_uploaded_file is not None:
+                    input_request.received_input = UploadedFileAbstraction(
+                        name=st_uploaded_file.name,  # type: ignore
+                        content=st_uploaded_file.getvalue(),  # type: ignore
+                    )
+                    engine().get_state().ui_controlled.input_request = input_request
+                    engine().update_state()
+                else:
+                    # NOTE: Why st.stop()? It seems otherwise streamlit tends to take the input as None
+                    # and continue running, breaking the flow.
+                    st.stop()
+            else:
+                raise NotImplementedError("Only file uploads are supported at the moment")
+
+            rerun_with_state(state="output")  # --> to tool call step (again).
 
 
 def handle_reason_stream() -> None:

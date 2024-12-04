@@ -2607,7 +2607,8 @@ class OpenAINextGenEngine(OpenAIEngineBase):
                 key=KeyGeneration.generate_message_key(),
                 role="system",
                 visibility="llm_only",
-                new_reasoning_cycle=True,
+                new_reasoning_cycle=True if agent.agent_type != "simulated_user" else False,
+                # TODO: ^ Needs to be refactored sensibly to avoid special casing.
                 text=system_message_text,
                 agent=agent.agent_type,
             )
@@ -2790,7 +2791,11 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
             tool_names = d2m(msg_w_dc.engine_state.agent_state["worker"], WorkerState).delegated_tools  # type: ignore
             tools = list_all_tool_specs(filter_tool_names=tool_names)
 
-        worker_messages = filter_messages_by_agent(self.get_message_history(), agent.agent_type)
+        worker_messages = filter_messages_by_agent(
+            self.get_message_history(),
+            agent_or_tuple=(agent.agent_type, "simulated_user"),
+            # ^ TODO: Refactor this to avoid special casing.
+        )
         historic_worker_messages, last_worker_messages = split_message_list_by_last_new_reasoning_cycle_marker(
             worker_messages
         )
