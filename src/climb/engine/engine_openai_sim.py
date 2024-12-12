@@ -237,7 +237,6 @@ class OpenAINextGenEngineSim(OpenAINextGenEngine):
             self.session.engine_state.user_message_requested is True
             and self.session.engine_state.response_kind == ResponseKind.TEXT_MESSAGE
         ):
-
             engine_state.agent_switched = True
             engine_state.agent = "simulated_user"
 
