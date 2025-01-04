@@ -748,7 +748,7 @@ def run_markdown_css_hack() -> None:
 
     /* A hack to dim out the stale messages _completely_. */
     div .stChatMessage [data-stale="true"] {
-        /*opacity: 0.0;*/
+        opacity: 0.0;
     }
     div .stChatMessage [data-stale="true"] button {
         display: none;
