@@ -795,13 +795,12 @@ COORDINATOR_EXAMPLES = f"""
 Here are several examples of how you should think about the coordination and reasoning process.
 These are just examples, NOT the actual project.
 
-The messages you should issue in these examples are shown between --- markers.
 You should respond EXACTLY in the format you see between the markers:
 [Your response]
 <YOUR ACTUAL MESSAGE>
 [Your response ends]
 
-**VERY IMPORTANT**: Step1, Step 2 and Step 3 are separate steps, and you will issue SEPARATE MESSAGES for each!
+**VERY IMPORTANT**: Step1, Step 2, Step 3, and Step 4 are separate steps, and you will issue SEPARATE MESSAGES for each!
 
 #### Example 1: Simple Progress
 
@@ -814,29 +813,57 @@ FULL RECORD (summary based on your understanding):
 #### Example 1A: Step 1 - Write observations
 [Your response]
 Based on the project record so far:
-1. The basic business registration has been completed successfully with no issues reported
-2. The user has explicitly expressed satisfaction with the progress
-3. No technical problems or misunderstandings have emerged
-4. The current direction aligns with the initial project requirements
-5. The completed episode (BASICS_1) represents a solid foundation for subsequent tasks
+1. The basic business registration has been completed successfully with no issues reported.
+2. The user has explicitly expressed satisfaction with the progress.
+3. No technical problems or misunderstandings have emerged.
+4. The current direction aligns with the initial project requirements.
+5. The completed episode (BASICS_1) represents a solid foundation for subsequent tasks.
 
 These observations suggest the project is proceeding as planned with no immediate concerns that would require changes.
 [Your response ends]
 
 #### Example 1B: Step 2 - Check for backtracking
 [Your response]
+From the observations, it's clear that the project is on track with no reported issues or deviations from the plan.
+
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 1C: Step 3 - Check plan
+#### Example 1C: Step 3 - Analyze next episode
 [Your response]
+Episode ID: BASICS_2
+Selection Condition: None
+Episode Name: Basic Infrastructure Setup
+
+Analysis:
+1. Necessity: This episode is necessary as it builds directly upon the completed business registration. \
+It establishes core infrastructure that will be required for all subsequent project activities. Removing it \
+would leave the project without essential foundational elements.
+2. Appropriateness: The episode is highly appropriate at this stage because:
+   - It naturally follows the completed business registration.
+   - No issues were identified that would suggest an alternative approach is needed.
+   - The user's satisfaction with BASICS_1 indicates we're on the right track with this approach.
+
+Conclusion: This episode should be kept as-is. It represents a logical next step in the project progression and has \
+no selection conditions that would suggest alternative approaches should be considered.
+
+REQUIRES PLAN UPDATE?: NO
+[Your response ends]
+
+#### Example 1D: Step 4 - Check plan
+[Your response]
+Based on the observations and next episode analysis, the plan should remain unchanged.
+
 {NO_PLAN_UPDATE_MARKER}
 [Your response ends]
 
 Note how each step follows logically:
 - Step 1's observations establish that everything is proceeding well with no issues.
-- This naturally leads to Step 2's conclusion that no backtracking is needed.
-- The observations about alignment with requirements support Step 3's decision to maintain the current plan.
+- This leads to Step 2's conclusion that no backtracking is needed.
+- Step 3's analysis confirms that the next planned episode is both necessary and appropriate.
+- The positive findings in Steps 1-3 support Step 4's decision to maintain the current plan.
+
+
 
 #### Example 2: User Dissatisfaction Requiring Backtrack
 
@@ -868,7 +895,30 @@ We should return to the initial design phase.
 {BACKTRACKING_MARKER} WEBSITE_1
 [Your response ends]
 
-#### Example 2C: Step 3 - Check plan
+#### Example 2C: Step 3 - Analyze next episode
+[Your response]
+Episode ID: SIMPLE_WEBSITE_1
+Selection Condition: When simpler design approach is required
+Episode Name: Simple Website Design Foundation
+
+Analysis:
+1. Necessity: This episode is absolutely necessary because:
+   - The user has explicitly requested a simpler approach.
+   - We need to establish a new design foundation based on simplified principles.
+   - The current complex design is causing user dissatisfaction.
+2. Appropriateness: This episode is highly appropriate because:
+   - Its selection condition exactly matches our current situation where a simpler design is explicitly required.
+   - It provides a fresh start with focus on simplicity.
+   - It directly addresses the user's feedback about complexity.
+   - It will help prevent similar issues in subsequent development phases.
+
+Conclusion: This episode should be implemented as planned. The selection condition perfectly matches our current \
+project state, and the episode's focus on simplicity directly addresses the identified issues.
+
+REQUIRES PLAN UPDATE?: NO
+[Your response ends]
+
+#### Example 2D: Step 4 - Check plan
 [Your response]
 The plan needs to be updated to focus on simpler website development tasks.
 
@@ -877,8 +927,11 @@ The plan needs to be updated to focus on simpler website development tasks.
 
 Note how each step follows logically:
 - Step 1's observations identify both the specific issue (complexity) and its root cause (misalignment during initial design).
-- The observations about when the issue originated directly inform Step 2's decision to backtrack to WEBSITE_1.
-- The understanding of user needs (simpler website) gained from the observations drives Step 3's plan update to include simplified website tasks.
+- The observations drive Step 2's decision to backtrack to WEBSITE_1.
+- Step 3's analysis validates that SIMPLE_WEBSITE_1 is the right next episode, with its selection condition matching our exact needs.
+- The understanding of user needs and episode analysis informs Step 4's plan update to include simplified website tasks.
+
+
 
 #### Example 3: Changed Requirements Mid-Project
 
@@ -904,10 +957,36 @@ These observations suggest that while the project's direction needs adjustment, 
 
 #### Example 3B: Step 2 - Check for backtracking
 [Your response]
+The observations indicate a change in requirements rather than a need to redo existing work, so backtracking isn't necessary.
+
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 3C: Step 3 - Check plan
+#### Example 3C: Step 3 - Analyze next episode
+[Your response]
+Episode ID: SOCIAL_MEDIA_1
+Selection Condition: When social media is primary marketing channel
+Episode Name: Social Media Strategy Development
+
+Analysis:
+1. Necessity: This episode is necessary because:
+   - The user has specified social media as the exclusive marketing channel.
+   - We need specialized social media strategy before tactical implementation.
+   - The basic marketing framework from MARKETING_1 needs social-specific direction.
+   - No other marketing channels need to be considered at this time.
+2. Appropriateness: This episode is highly appropriate because:
+   - Its selection condition exactly matches the user's requirement for social media focus.
+   - It builds upon the basic marketing framework already established.
+   - It provides specialized direction needed for social media success.
+   - It will inform all subsequent social media marketing activities.
+
+Conclusion: This episode should be implemented as the next step. Its selection condition matches our current needs \
+perfectly, and it provides the necessary strategic foundation for the new social media focus while building on existing work.
+
+REQUIRES PLAN UPDATE?: NO
+[Your response ends]
+
+#### Example 3D: Step 4 - Check plan
 [Your response]
 Current plan includes traditional marketing channels, but user wants social media focus.
 
@@ -915,9 +994,12 @@ Current plan includes traditional marketing channels, but user wants social medi
 [Your response ends]
 
 Note how each step follows logically:
-- Step 1's observations carefully distinguish between a scope refinement and an error condition.
-- This understanding leads to Step 2's decision that backtracking isn't needed (since existing work is still valid).
-- The observations about specialized needs inform Step 3's plan update to focus on social media-specific tasks while building on the existing marketing framework.
+- Step 1's observations identify the requirement change as a refinement rather than an error.
+- This leads to Step 2's conclusion that backtracking isn't needed since existing work remains valuable.
+- Step 3's analysis confirms SOCIAL_MEDIA_1 is the right next episode, with its selection condition matching the new focus.
+- The clear understanding of requirements and episode appropriateness drives Step 4's plan update to focus on social media tasks.
+
+
 
 #### Example 4: Technical Error Requiring Backtrack
 
@@ -949,7 +1031,31 @@ We need to return to the initial database setup to correct the issue.
 {BACKTRACKING_MARKER} DATABASE_1
 [Your response ends]
 
-#### Example 4C: Step 3 - Check plan
+#### Example 4C: Step 3 - Analyze next episode
+[Your response]
+Episode ID: DATABASE_VALIDATION_1
+Selection Condition: When database setup requires rigorous validation
+Episode Name: Database Configuration Validation Framework
+
+Analysis:
+1. Necessity: This episode is absolutely necessary because:
+   - A critical configuration error was missed in the previous implementation.
+   - We need to establish stronger validation processes before proceeding.
+   - The current situation explicitly demonstrates the risks of inadequate validation.
+   - Future database work requires a reliable validation framework.
+2. Appropriateness: This episode is highly appropriate because:
+   - Its selection condition matches our current need for enhanced validation.
+   - It addresses the root cause of our current issues (lack of validation).
+   - It will help prevent similar configuration errors in future phases.
+   - It provides a framework that will benefit all subsequent database tasks.
+
+Conclusion: This episode is essential as the next step. The selection condition perfectly matches our current needs, \
+and the episode provides critical validation infrastructure before we proceed with further database configuration.
+
+REQUIRES PLAN UPDATE?: NO
+[Your response ends]
+
+#### Example 4D: Step 4 - Check plan
 [Your response]
 We need to modify the database setup steps to include additional validation.
 
@@ -958,8 +1064,11 @@ We need to modify the database setup steps to include additional validation.
 
 Note how each step follows logically:
 - Step 1's observations identify both the immediate technical issue and the systemic validation gap.
-- The understanding of the error's scope from the observations drives Step 2's decision to backtrack to DATABASE_1.
-- The recognition of process weaknesses leads to Step 3's plan update that introduces new validation steps.
+- This drives Step 2's decision to backtrack to DATABASE_1 for a fresh start.
+- Step 3's analysis confirms that DATABASE_VALIDATION_1 is essential as the next step to prevent similar issues.
+- The understanding of validation needs informs Step 4's plan update to interleave validation steps with database work.
+
+
 
 #### Example 5: Successful Project Completion
 
@@ -985,18 +1094,50 @@ These observations suggest the project has reached a successful conclusion with 
 
 #### Example 5B: Step 2 - Check for backtracking
 [Your response]
+The successful completion of all project tasks, user satisfaction, and absence of issues indicate no need for backtracking.
+
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 5C: Step 3 - Check plan
+#### Example 5C: Step 3 - Analyze next episode
 [Your response]
+Episode ID: PROJECT_CLOSURE
+Selection Condition: When all deliverables are complete and approved
+Episode Name: Project Closure and Documentation
+
+Analysis:
+1. Necessity: This episode is necessary because:
+   - All substantive project work has been completed successfully.
+   - User approval has been obtained for all deliverables.
+   - Formal closure ensures proper documentation and handover.
+   - It provides a clear project endpoint for all stakeholders.
+2. Appropriateness: This episode is highly appropriate because:
+   - Its selection condition perfectly matches our current state where all deliverables are complete and approved.
+   - The final review showed no outstanding issues requiring attention.
+   - User satisfaction has been explicitly confirmed.
+   - No new requirements or changes are pending.
+
+Conclusion: This episode should be implemented as the final step, after which the project can be formally closed. \
+The selection condition is fully satisfied, and there are no remaining tasks or issues that would prevent project \
+closure.
+
+REQUIRES PLAN UPDATE?: NO
+[Your response ends]
+
+#### Example 5D: Step 4 - Check plan
+[Your response]
+The project is ready for closure. This means no plan updates are needed.
+
 {PROJECT_END_MARKER}
 [Your response ends]
 
 Note how each step follows logically:
-- Step 1's observations systematically verify that all success criteria have been met.
-- The comprehensive confirmation of completion leads to Step 2's decision that no backtracking is needed.
-- The validation of all objectives being met supports Step 3's decision to mark the project as complete.
+- Step 1's observations confirm all objectives have been met with user satisfaction.
+- This supports Step 2's conclusion that no backtracking is needed.
+- Step 3's analysis validates that conditions for project closure have been met.
+- The comprehensive completion of all requirements leads to Step 4's decision to end the project.
+
+
 
 #### Example 6: Scope Expansion
 
@@ -1022,10 +1163,36 @@ These observations indicate a need to expand the project scope while preserving 
 
 #### Example 6B: Step 2 - Check for backtracking
 [Your response]
+The observations suggest an expansion of project scope rather than a need to redo existing work, so backtracking isn't necessary.
+
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 6C: Step 3 - Check plan
+#### Example 6C: Step 3 - Analyze next episode
+[Your response]
+Episode ID: SUPPLIER_1
+Selection Condition: When supplier management functionality is required
+Episode Name: Supplier Management Foundation
+
+Analysis:
+1. Necessity: This episode is necessary because:
+   - User has explicitly requested supplier management functionality.
+   - Supplier management is naturally connected to inventory management.
+   - Early implementation will allow proper integration with inventory system.
+   - It addresses a clear operational need identified by the user.
+2. Appropriateness: This episode is highly appropriate because:
+   - Its selection condition directly matches the user's new requirement.
+   - It follows logically from the completed inventory foundation.
+   - The timing allows for proper integration with existing inventory work.
+   - It builds upon rather than disrupts existing functionality.
+
+Conclusion: This episode should be implemented next. The selection condition matches current needs, and the episode \
+provides essential supplier management foundations while allowing integration with existing inventory work.
+
+REQUIRES PLAN UPDATE?: NO
+[Your response ends]
+
+#### Example 6D: Step 4 - Check plan
 [Your response]
 Current plan doesn't account for supplier management requirements.
 
@@ -1033,9 +1200,12 @@ Current plan doesn't account for supplier management requirements.
 [Your response ends]
 
 Note how each step follows logically:
-- Step 1's observations carefully analyze the relationship between existing work and new requirements.
-- The understanding that new requirements complement rather than conflict with existing work leads to Step 2's decision that no backtracking is needed.
-- The observations about integration needs inform Step 3's plan update to interleave supplier management with remaining inventory tasks.
+- Step 1's observations recognize the complementary nature of the new requirement.
+- This leads to Step 2's conclusion that backtracking isn't needed.
+- Step 3's analysis confirms SUPPLIER_1 as an appropriate next step that builds on existing work.
+- The understanding of integration needs drives Step 4's plan update to interleave supplier and inventory tasks.
+
+
 
 #### Example 7: Dependency Discovery
 
@@ -1061,10 +1231,36 @@ These observations indicate a need to reorder tasks to address dependencies whil
 
 #### Example 7B: Step 2 - Check for backtracking
 [Your response]
+The missing dependency on user authentication for secure payments requires a change in task order but not backtracking.
+
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 7C: Step 3 - Check plan
+#### Example 7C: Step 3 - Analyze next episode
+[Your response]
+Episode ID: AUTH_1
+Selection Condition: When secure user identification is required
+Episode Name: User Authentication System Setup
+
+Analysis:
+1. Necessity: This episode is absolutely necessary because:
+   - It provides a critical security prerequisite for payment processing.
+   - Secure payments cannot proceed without user authentication.
+   - The requirement is driven by fundamental security principles.
+   - It establishes infrastructure needed by multiple future features.
+2. Appropriateness: This episode is highly appropriate because:
+   - Its selection condition matches our current need for secure user identification.
+   - It addresses the blocking dependency immediately.
+   - It provides foundations for other potential security features.
+   - It can be implemented without losing progress on payment work.
+
+Conclusion: This episode must be implemented next. The selection condition is triggered by our security \
+requirements, and the episode provides essential authentication infrastructure needed for secure payments.
+
+REQUIRES PLAN UPDATE?: YES
+[Your response ends]
+
+#### Example 7D: Step 4 - Check plan
 [Your response]
 We need to insert authentication tasks before payment processing.
 
@@ -1072,9 +1268,12 @@ We need to insert authentication tasks before payment processing.
 [Your response ends]
 
 Note how each step follows logically:
-- Step 1's observations identify both the immediate blocking issue and potential systemic planning gaps.
-- The understanding that this is a missing prerequisite rather than incorrect work leads to no backtracking.
-- The dependency realization drives a plan update to insert necessary authentication tasks.
+- Step 1's observations identify both the immediate blocking issue and potential other dependencies.
+- The understanding that this is a missing prerequisite leads to Step 2's decision that backtracking isn't needed.
+- Step 3's analysis confirms AUTH_1 as the critical next step to enable secure payments.
+- The dependency realization drives Step 4's plan update to insert necessary authentication tasks.
+
+
 
 #### Example 8: Partial Success Requiring Iteration
 
@@ -1101,12 +1300,38 @@ These observations suggest an opportunity for valuable iteration while maintaini
 
 #### Example 8B: Step 2 - Check for backtracking
 [Your response]
-The current UI implementation, while functional, needs refinement for optimal user experience. We should revisit the design phase with usability findings.
+The current UI implementation, while functional, needs refinement for optimal user experience. We should revisit \
+the design phase with usability findings.
 
 {BACKTRACKING_MARKER} UI_DESIGN_1
 [Your response ends]
 
-#### Example 8C: Step 3 - Check plan
+#### Example 8C: Step 3 - Analyze next episode
+[Your response]
+Episode ID: UI_USABILITY_1
+Selection Condition: When UI requires usability optimization
+Episode Name: UI Usability Enhancement Phase
+
+Analysis:
+1. Necessity: This episode is necessary because:
+   - User feedback indicates specific usability improvements are needed.
+   - Current metrics show potential for significant user experience enhancement.
+   - Project timeline allows for optimization work.
+   - The investment in usability will benefit long-term user satisfaction.
+2. Appropriateness: This episode is highly appropriate because:
+   - Its selection condition matches our current state where usability optimization is needed.
+   - It builds on functional implementation rather than starting over.
+   - It addresses specific user feedback about intuitiveness.
+   - It takes advantage of available schedule flexibility.
+
+Conclusion: This episode should be implemented next. The selection condition matches our need for usability \
+improvements, and the episode allows us to enhance the existing functional foundation rather than requiring a \
+complete redesign.
+
+REQUIRES PLAN UPDATE?: NO
+[Your response ends]
+
+#### Example 8D: Step 4 - Check plan
 [Your response]
 We should add an optimization cycle to improve usability based on feedback.
 
@@ -1115,8 +1340,11 @@ We should add an optimization cycle to improve usability based on feedback.
 
 Note how each step follows logically:
 - Step 1's observations carefully weigh the balance between acceptable and optimal outcomes.
-- The opportunity for meaningful improvement drives the decision to backtrack for refinement.
-- The plan update introduces specific usability-focused tasks while maintaining core functionality.
+- This drives Step 2's decision to backtrack for refinement while preserving functional work.
+- Step 3's analysis confirms UI_USABILITY_1 as an appropriate next step for optimization.
+- The understanding of improvement opportunities shapes Step 4's plan update to include usability-focused tasks.
+
+
 
 #### Example 9: Resource Constraint Adaptation
 
@@ -1142,10 +1370,36 @@ These observations suggest a need to pivot to an approach that matches available
 
 #### Example 9B: Step 2 - Check for backtracking
 [Your response]
+While the current approach requires resources that aren't available, the completed data preprocessing work remains valuable.
+
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 9C: Step 3 - Check plan
+#### Example 9C: Step 3 - Analyze next episode
+[Your response]
+Episode ID: STATISTICAL_ANALYSIS_1
+Selection Condition: When ML resources unavailable but data analysis needed
+Episode Name: Statistical Analysis Implementation
+
+Analysis:
+1. Necessity: This episode is necessary because:
+   - We need an alternative approach to data analysis given resource constraints.
+   - The project still requires data-driven insights.
+   - Statistical analysis can achieve many of the original objectives.
+   - We can leverage the existing preprocessed data.
+2. Appropriateness: This episode is highly appropriate because:
+   - Its selection condition exactly matches our current situation with ML resources unavailable.
+   - It uses methods that are feasible with current team expertise.
+   - It requires no specialized hardware infrastructure.
+   - It can provide valuable insights from the existing data preparation.
+
+Conclusion: This episode should be implemented next. The selection condition matches our resource constraints \
+perfectly, and the episode offers a viable alternative that can meet project goals with available resources.
+
+REQUIRES PLAN UPDATE?: NO
+[Your response ends]
+
+#### Example 9D: Step 4 - Check plan
 [Your response]
 We need to replace ML-based tasks with alternative analysis methods that match our resource constraints.
 
@@ -1154,8 +1408,140 @@ We need to replace ML-based tasks with alternative analysis methods that match o
 
 Note how each step follows logically:
 - Step 1's observations analyze both the constraint and the salvageable work.
-- The understanding that existing data work is still valuable leads to no backtracking.
-- The resource limitations drive a plan update to use alternative, feasible approaches.
+- This leads to Step 2's conclusion that backtracking isn't needed since data preparation remains valuable.
+- Step 3's analysis confirms STATISTICAL_ANALYSIS_1 as an appropriate alternative approach.
+- The understanding of resource limitations drives Step 4's plan update to use feasible methods.
+
+
+
+#### Example 10: Unnecessary Episode Detection
+
+[Description of the situation]
+LAST EPISODE: "MOBILE_APP_1"
+FULL RECORD (summary based on your understanding):
+- Completed initial mobile app planning
+- User clarified: "We actually just need a responsive website, not a native app"
+- Previous steps included requirements gathering and platform analysis
+
+#### Example 10A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. Initial mobile app planning has been completed.
+2. The user has provided crucial clarification about platform requirements.
+3. A responsive website will meet all stated needs.
+4. Native mobile app development would be overkill for requirements.
+5. The platform analysis remains valuable for responsive design.
+6. Continuing with native app development would be wasteful.
+
+These observations indicate a need to simplify the technical approach while preserving relevant analysis.
+[Your response ends]
+
+#### Example 10B: Step 2 - Check for backtracking
+[Your response]
+The user's clarification about platform requirements suggests a need to change course but not to redo existing work.
+
+{NO_BACKTRACKING_MARKER}
+[Your response ends]
+
+#### Example 10C: Step 3 - Analyze next episode
+[Your response]
+Episode ID: MOBILE_APP_2
+Selection Condition: When native mobile app is required
+Episode Name: Native Mobile App Framework Setup
+
+Analysis:
+1. Necessity: This episode is NOT necessary because:
+   - User has clarified that a responsive website meets their needs.
+   - Native app development would exceed actual requirements.
+   - The additional complexity of native app infrastructure is unwarranted.
+   - Resources would be better spent on responsive web development.
+2. Appropriateness: While the episode is well-designed for native app development:
+   - Its selection condition is not met (native app is not required).
+   - The approach would introduce unnecessary technical complexity.
+   - It would divert resources from the actual need (responsive website).
+   - The user's clarification invalidates the premise of this episode.
+
+Conclusion: This episode should be removed from the plan. The selection condition is not met, and the episode \
+represents unnecessary work given the clarified project requirements.
+
+REQUIRES PLAN UPDATE?: YES
+[Your response ends]
+
+#### Example 10D: Step 4 - Check plan
+[Your response]
+Need to replace mobile app development with responsive website development.
+
+{PLAN_UPDATE_MARKER} ["MOBILE_APP_1", "RESPONSIVE_WEB_1", "RESPONSIVE_WEB_2"]
+[Your response ends]
+
+
+
+#### Example 11: Inappropriate Episode Requiring Replacement
+
+[Description of the situation]
+LAST EPISODE: "DATA_COLLECTION_1"
+FULL RECORD (summary based on your understanding):
+- Completed initial data collection setup
+- Discovered data is highly sensitive medical information
+- Regular data handling procedures insufficient for compliance
+- Previous steps included basic infrastructure setup
+
+#### Example 11A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. Basic data collection infrastructure is in place.
+2. The medical nature of the data requires special handling.
+3. Current procedures don't meet healthcare compliance requirements.
+4. Additional security measures are necessary.
+5. Standard data handling episodes would be insufficient.
+6. Compliance must be established before further data handling.
+
+These observations indicate a need to switch to healthcare-compliant processes.
+[Your response ends]
+
+#### Example 11B: Step 2 - Check for backtracking
+[Your response]
+The observations do not suggest a need to backtrack but rather a need to adjust the plan to meet compliance requirements.
+
+{NO_BACKTRACKING_MARKER}
+[Your response ends]
+
+#### Example 11C: Step 3 - Analyze next episode
+[Your response]
+Episode ID: DATA_PROCESSING_1
+Selection Condition: When standard data processing is needed
+Episode Name: Basic Data Processing Implementation
+
+Analysis:
+1. Necessity: While data processing is necessary:
+   - THIS specific episode uses standard processing procedures.
+   - It lacks required healthcare compliance measures.
+   - It would violate regulatory requirements if used.
+   - A HIPAA-compliant alternative is required.
+
+2. Appropriateness: This episode is inappropriate because:
+   - Its selection condition assumes standard data requirements.
+   - It lacks necessary security measures for medical data.
+   - It would risk regulatory violations if implemented.
+   - A specialized healthcare data processing episode exists in the database.
+
+Conclusion: This episode must be replaced with HEALTHCARE_DATA_1 from the episodes database. The current episode's \
+selection condition is not appropriate for medical data, and a more suitable alternative is available.
+
+REQUIRES PLAN UPDATE?: YES
+[Your response ends]
+
+#### Example 11D: Step 4 - Check plan
+[Your response]
+Need to replace standard data processing with healthcare-compliant processes.
+
+{PLAN_UPDATE_MARKER} ["DATA_COLLECTION_1", "HEALTHCARE_DATA_1", "HEALTHCARE_DATA_2", "COMPLIANCE_REVIEW_1"]
+[Your response ends]
+
+Note the key differences in these examples:
+- Example 10 shows an episode that's simply unnecessary (can be removed)
+- Example 11 shows an episode that's inappropriate but must be replaced with an alternative
+Both demonstrate how Step 3's analysis directly informs plan updates in Step 4.
 """
 
 
@@ -1179,16 +1565,7 @@ right direction.
 demonstration purposes.
 """
 
-# TODO: Needs to be better.
 COORDINATOR_REMINDER = f"""
-# Reminder - RULES:
-{COORDINATOR_RULES}
-
-# Reminder - EPISODE DATABASE:
-```text
-{EPISODE_DB_REPLACE_MARKER}
-```
-
 # Reminder - PLAN:
 ```text
 {PLAN_REPLACE_MARKER}
@@ -1204,6 +1581,12 @@ COORDINATOR_REMINDER = f"""
 For your information, do not send this to the user
 ```text
 {WD_CONTENTS_REPLACE_MARKER}
+
+====================
+# REMEMBER
+- If in Step 3. "Analyze next episode" you have concluded that the next episode is not appropriate, you MUST update \
+the PLAN in Step 4 "Check plan".
+====================
 """
 
 COORDINATOR_SYSTEM_MESSAGE = f"""
@@ -1306,7 +1689,62 @@ You will need to correct the issue and try again.
 The system needs to do some work between these steps. Control will be handed back to you after Step 1, and you will \
 be told that you are now in Step 2.
 
-#### Step 3. Check the plan.
+##### Step 3. Analyze next episode
+
+After determining whether backtracking is needed, analyze the next episode that would be executed in the plan.
+This is either:
+- The episode after LAST_EPISODE in the current plan, or,
+- If backtracking was chosen, the episode after the backtrack point.
+
+**You can find this information in the EPISODES DATABASE.**
+
+First, identify and document the episode details from in this exact format:
+Episode ID: <ID>
+Selection Condition: <"None" or the specific condition text>
+Episode Name: <NAME>
+
+Then, analyze the episode's appropriateness by answering BOTH questions:
+
+(1) Necessity Analysis:
+    - Is this episode still necessary given the current project state?
+    - Could it be safely removed without compromising project goals?
+    - What specific value does it add at this point in the project?
+
+(2) Appropriateness Analysis:
+    - Is this episode (and its selection condition if any) appropriate for the current project state?
+    - Does it need to be replaced with a different episode?
+    - Are there any risks or concerns with executing this episode now?
+
+You will then write a conclusion about whether the episode should be kept as-is, modified, or removed.
+You then finish with stating whether this implies a plan update or not.
+
+Your response must use **this exact format**:
+[Your response]
+Episode ID: EXAMPLE_1
+Selection Condition: <selection condition text>
+Episode Name: Example Task
+
+Analysis:
+1. Necessity: <your detailed analysis of whether the episode is necessary>.
+2. Appropriateness: <your detailed analysis of whether the episode is appropriate>.
+
+Conclusion: <your summary conclusion about whether this episode should be kept as-is, modified, or removed>.
+
+REQUIRES PLAN UPDATE?: NO
+[Your response ends]
+
+**IMPORTANT**: This step's conclusion will inform your decisions in Step 4 (Plan Update). If you determine that the \
+episode needs to be changed or removed, you must reflect this in your plan update decisions.
+**IMPORTANT** Like all other steps, Step 3 must be issued as a separate message. Do not combine it with \
+Steps 1, 2, or 4. The system needs to process each step separately.
+
+If your response format is incorrect, you will receive:
+[Your response]
+{PROBLEM_WITH_OUTPUT_COORDINATOR}
+<Explanation of the problem with the response format.>
+[Your response ends]
+
+#### Step 4. Check the plan.
 
 Is the plan appropriate given the current state of the PROJECT? Consider:
 - If you have backtracked, is the plan appropriate from the point you have backtracked to? It is likely that you will \
@@ -2364,6 +2802,77 @@ def parse_backtracking(
     raise ValueError("Neither backtracking_marker nor no_backtracking_marker are present in the input.")
 
 
+def validate_next_episode_analysis(text: str) -> bool:
+    """
+    Validates episode text format according to specified rules.
+    Returns True if valid, raises ValueError with description if invalid.
+    """
+    # Strip any trailing whitespace and ensure text ends with actual content
+    text = text.rstrip()
+
+    # Define regex patterns for each section
+    episode_id_pattern = r"Episode ID: ([A-Z][A-Z0-9_]*)\n"
+    selection_condition_pattern = r"Selection Condition: (.+)\n"
+    episode_name_pattern = r"Episode Name: (.+)\n"
+
+    # Pattern for Analysis section with numbered points
+    analysis_pattern = (
+        r"\nAnalysis:\n"
+        r"1\. Necessity: (.+?)\n"  # Non-greedy match for multi-line content
+        r"2\. Appropriateness: (.+?)\n"  # Non-greedy match for multi-line content
+    )
+
+    # Pattern for Conclusion
+    conclusion_pattern = r"\nConclusion: (.+?)$"  # End of string
+
+    # Combine all patterns
+    full_pattern = (
+        f"^{episode_id_pattern}"
+        f"{selection_condition_pattern}"
+        f"{episode_name_pattern}"
+        f"{analysis_pattern}"
+        f"{conclusion_pattern}"
+    )
+
+    # Try to match the full pattern
+    match = re.search(full_pattern, text, re.DOTALL)
+
+    if not match:
+        # If no match, try to identify specific issues
+        if not re.match(f"^{episode_id_pattern}", text):
+            raise ValueError(
+                "Invalid Episode ID format. Must start with a capital letter and contain only uppercase letters, numbers, and underscores."
+            )
+
+        if not re.search(selection_condition_pattern, text):
+            raise ValueError(
+                "Invalid Selection Condition format. Must be a single line starting with 'Selection Condition: '"
+            )
+
+        if not re.search(episode_name_pattern, text):
+            raise ValueError("Invalid Episode Name format. Must be a single line starting with 'Episode Name: '")
+
+        if not re.search(r"\nAnalysis:\n1\. Necessity:", text):
+            raise ValueError("Invalid Analysis section format. Must start with 'Analysis:' followed by '1. Necessity:'")
+
+        if not re.search(r"2\. Appropriateness:", text):
+            raise ValueError("Invalid Analysis section format. Missing or incorrect '2. Appropriateness:' section")
+
+        if not re.search(r"\nConclusion:", text):
+            raise ValueError("Invalid Conclusion format. Must start with 'Conclusion:'")
+
+        raise ValueError("Invalid text format. Please check the overall structure and formatting.")
+
+    # Additional validation for Episode ID format
+    episode_id = match.group(1)
+    if not re.match(r"^[A-Z][A-Z0-9_]*$", episode_id):
+        raise ValueError(
+            "Episode ID must start with a capital letter and contain only uppercase letters, numbers, and underscores"
+        )
+
+    return True
+
+
 def parse_plan_update(input_text, plan_update_marker, no_plan_update_marker):
     """
     Parses the input text to determine the plan update status and updated plan.
@@ -2513,7 +3022,7 @@ class AgentStore(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
 
-CoordinatorReasoningCotStage = Literal["write_observations", "check_backtracking", "check_plan"]
+CoordinatorReasoningCotStage = Literal["write_observations", "check_backtracking", "analyze_next_episode", "check_plan"]
 EpisodeDb = List[Dict[str, Any]]
 Plan = List[str]
 
@@ -2521,7 +3030,8 @@ Plan = List[str]
 COORDINATOR_REASONING_COT_STAGE_MAP = {
     "write_observations": "1: Write observations.",
     "check_backtracking": "2: Check for backtracking.",
-    "check_plan": "Step 3: Check the plan.",
+    "analyze_next_episode": "3. Analyze next episode.",
+    "check_plan": "Step 4: Check the plan.",
 }
 
 
@@ -2956,7 +3466,7 @@ class OpenAICotEngine(OpenAIEngineBase):
         if last_message_coordinator_state.coordinator_reasoning_stage == "write_observations":
             # We aren't doing any special parsing in this step.
             message_text = last_message.text
-            
+
             # Update EngineState state.
             coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
             coordinator_state.coordinator_reasoning_stage = "check_backtracking"
@@ -2982,11 +3492,37 @@ class OpenAICotEngine(OpenAIEngineBase):
 
                 # Update EngineState state.
                 coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
-                coordinator_state.coordinator_reasoning_stage = "check_plan"
+                coordinator_state.coordinator_reasoning_stage = "analyze_next_episode"
                 if backtracking_true:
                     coordinator_state.last_episode = backtracking_id
                 else:
                     coordinator_state.last_episode = self.get_current_last_episode()
+                self.session.engine_state.agent_state["coordinator"] = m2d(coordinator_state)
+                self.update_state()
+
+            except ValueError as e:
+                exc_str = str(e)
+                self._append_message(
+                    message=Message(
+                        key=KeyGeneration.generate_message_key(),
+                        role="system",
+                        visibility="llm_only",
+                        agent="coordinator",
+                        text=f"{PROBLEM_WITH_OUTPUT_COORDINATOR}:\n{exc_str}",
+                    )
+                )
+
+        elif last_message_coordinator_state.coordinator_reasoning_stage == "analyze_next_episode":
+            try:
+                message_text = last_message.text
+
+                # Validate format and throw feedback exception if invalid.
+                validate_next_episode_analysis(message_text)
+
+                # Update EngineState state.
+                coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
+                coordinator_state.coordinator_reasoning_stage = "check_plan"
+                # coordinator_state.last_episode = self.get_current_last_episode()
                 self.session.engine_state.agent_state["coordinator"] = m2d(coordinator_state)
                 self.update_state()
 
