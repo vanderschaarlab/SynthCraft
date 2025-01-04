@@ -801,34 +801,45 @@ You should respond EXACTLY in the format you see between the markers:
 <YOUR ACTUAL MESSAGE>
 [Your response ends]
 
-**VERY IMPORTANT**: Step 1 and Step 2 are separate steps, and you will issue SEPARATE MESSAGES for each!
+**VERY IMPORTANT**: Step1, Step 2 and Step 3 are separate steps, and you will issue SEPARATE MESSAGES for each!
 
-#### Example 1A: Simple Progress, Step 1
+#### Example 1: Simple Progress
+
 [Description of the situation]
 LAST EPISODE: "BASICS_1"
 FULL RECORD (summary based on your understanding):
 - Completed basic business registration
 - User expressed satisfaction with progress
 
-Step 1: Check for backtracking
+#### Example 1A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. The basic business registration has been completed successfully with no issues reported
+2. The user has explicitly expressed satisfaction with the progress
+3. No technical problems or misunderstandings have emerged
+4. The current direction aligns with the initial project requirements
+5. The completed episode (BASICS_1) represents a solid foundation for subsequent tasks
+
+These observations suggest the project is proceeding as planned with no immediate concerns that would require changes.
+[Your response ends]
+
+#### Example 1B: Step 2 - Check for backtracking
 [Your response]
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 1B: Simple Progress, Step 2
-[Description of the situation]
-LAST EPISODE: "BASICS_1"
-FULL RECORD (summary based on your understanding):
-- Completed basic business registration
-- User expressed satisfaction with progress
-- You decided no backtracking was needed
-
-Step 2: Check plan
+#### Example 1C: Step 3 - Check plan
 [Your response]
 {NO_PLAN_UPDATE_MARKER}
 [Your response ends]
 
-#### Example 2A: User Dissatisfaction Requiring Backtrack, Step 1
+Note how each step follows logically:
+- Step 1's observations establish that everything is proceeding well with no issues.
+- This naturally leads to Step 2's conclusion that no backtracking is needed.
+- The observations about alignment with requirements support Step 3's decision to maintain the current plan.
+
+#### Example 2: User Dissatisfaction Requiring Backtrack
+
 [Description of the situation]
 LAST EPISODE: "WEBSITE_2"
 FULL RECORD (summary based on your understanding):
@@ -836,7 +847,20 @@ FULL RECORD (summary based on your understanding):
 - User commented: "This isn't what I wanted at all. The website is too complex."
 - Previous episodes included basic setup and initial design
 
-Step 1: Check for backtracking
+#### Example 2A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. The website design has been completed but has received strong negative feedback from the user.
+2. The specific criticism centers on complexity - the user wanted something simpler.
+3. This suggests a misalignment between our understanding and user requirements that wasn't caught during the initial design phase.
+4. The issue appears to have originated during or before the WEBSITE_1 episode where the initial design decisions were made.
+5. Continuing with the current direction would likely lead to further user dissatisfaction.
+6. The completed work, while technically sound, doesn't meet the user's actual needs.
+
+These observations indicate a significant course correction may be needed, potentially requiring both backtracking and plan adjustment.
+[Your response ends]
+
+#### Example 2B: Step 2 - Check for backtracking
 [Your response]
 The website development has gone in a direction that doesn't match the user's needs. They want something simpler.
 We should return to the initial design phase.
@@ -844,19 +868,20 @@ We should return to the initial design phase.
 {BACKTRACKING_MARKER} WEBSITE_1
 [Your response ends]
 
-#### Example 2B: User Dissatisfaction Requiring Backtrack, Step 2
-Continuing from Example 2A, but this is a SEPARATE STEP.
-**IMPORTANT**: Note that even if you selected to backtrack in Step 1, you still need to check the plan in Step 2.
-This is because you may need to do both backtracking AND plan change in some cases.
-
-Step 2: Check plan
+#### Example 2C: Step 3 - Check plan
 [Your response]
 The plan needs to be updated to focus on simpler website development tasks.
 
 {PLAN_UPDATE_MARKER} ["WEBSITE_1", "SIMPLE_WEBSITE_1", "SIMPLE_WEBSITE_2"]
 [Your response ends]
 
-#### Example 3A: Changed Requirements Mid-Project, Step 1
+Note how each step follows logically:
+- Step 1's observations identify both the specific issue (complexity) and its root cause (misalignment during initial design).
+- The observations about when the issue originated directly inform Step 2's decision to backtrack to WEBSITE_1.
+- The understanding of user needs (simpler website) gained from the observations drives Step 3's plan update to include simplified website tasks.
+
+#### Example 3: Changed Requirements Mid-Project
+
 [Description of the situation]
 LAST EPISODE: "MARKETING_1"
 FULL RECORD (summary based on your understanding):
@@ -864,22 +889,38 @@ FULL RECORD (summary based on your understanding):
 - Started marketing campaign planning
 - User revealed they want to focus on social media only, not traditional marketing
 
-Step 1: Check for backtracking
+#### Example 3A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. The basic marketing framework has been established in MARKETING_1.
+2. A significant new requirement has emerged - exclusive focus on social media.
+3. The user's clarification represents a scope refinement rather than a correction of errors.
+4. The work completed in MARKETING_1 is still valuable as a foundation.
+5. The change in focus affects future planned tasks more than completed work.
+6. The user's requirement suggests a need for specialized social media marketing expertise.
+
+These observations suggest that while the project's direction needs adjustment, the work completed so far remains valid and useful.
+[Your response ends]
+
+#### Example 3B: Step 2 - Check for backtracking
 [Your response]
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 3A: Changed Requirements Mid-Project, Step 2
-Continuing from Example 3A, but this is a SEPARATE STEP.
-
-Step 2: Check plan
+#### Example 3C: Step 3 - Check plan
 [Your response]
 Current plan includes traditional marketing channels, but user wants social media focus.
 
 {PLAN_UPDATE_MARKER} ["MARKETING_1", "SOCIAL_MEDIA_1", "SOCIAL_MEDIA_2", "SOCIAL_MEDIA_3"]
 [Your response ends]
 
-#### Example 4A: Technical Error Requiring Backtrack, Step 1
+Note how each step follows logically:
+- Step 1's observations carefully distinguish between a scope refinement and an error condition.
+- This understanding leads to Step 2's decision that backtracking isn't needed (since existing work is still valid).
+- The observations about specialized needs inform Step 3's plan update to focus on social media-specific tasks while building on the existing marketing framework.
+
+#### Example 4: Technical Error Requiring Backtrack
+
 [Description of the situation]
 LAST EPISODE: "DATABASE_3"
 FULL RECORD (summary based on your understanding):
@@ -887,7 +928,20 @@ FULL RECORD (summary based on your understanding):
 - Error detected in configuration
 - Previous steps included schema design and initial setup
 
-Step 1: Check for backtracking
+#### Example 4A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. A critical configuration error has been identified in the database setup.
+2. The error's nature suggests it may have affected work done in DATABASE_2 and DATABASE_3.
+3. The database schema design from earlier steps may still be valid.
+4. The configuration issue could potentially impact system reliability and performance.
+5. The error wasn't caught by existing validation processes.
+6. Additional validation steps might be needed to prevent similar issues.
+
+These observations indicate both a need to revisit earlier database work and to strengthen the validation process going forward.
+[Your response ends]
+
+#### Example 4B: Step 2 - Check for backtracking
 [Your response]
 We've discovered a configuration error that affects the entire database setup.
 We need to return to the initial database setup to correct the issue.
@@ -895,18 +949,20 @@ We need to return to the initial database setup to correct the issue.
 {BACKTRACKING_MARKER} DATABASE_1
 [Your response ends]
 
-#### Example 4B: Technical Error Requiring Backtrack, Step 2
-Continuing from Example 4A, but this is a SEPARATE STEP.
-Notice in this example, we are doing both backtracking and plan update.
-
-Step 2: Check plan
+#### Example 4C: Step 3 - Check plan
 [Your response]
 We need to modify the database setup steps to include additional validation.
 
 {PLAN_UPDATE_MARKER} ["DATABASE_1", "DATABASE_VALIDATION_1", "DATABASE_2", "DATABASE_VALIDATION_2", "DATABASE_3"]
 [Your response ends]
 
-#### Example 5A: Successful Project Completion, Step 1
+Note how each step follows logically:
+- Step 1's observations identify both the immediate technical issue and the systemic validation gap.
+- The understanding of the error's scope from the observations drives Step 2's decision to backtrack to DATABASE_1.
+- The recognition of process weaknesses leads to Step 3's plan update that introduces new validation steps.
+
+#### Example 5: Successful Project Completion
+
 [Description of the situation]
 LAST EPISODE: "FINAL_REVIEW"
 FULL RECORD (summary based on your understanding):
@@ -914,20 +970,36 @@ FULL RECORD (summary based on your understanding):
 - User confirmed satisfaction with all deliverables
 - Final review showed no issues
 
-Step 1: Check for backtracking
+#### Example 5A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. All planned project deliverables have been successfully completed.
+2. The user has explicitly confirmed satisfaction with all aspects of the work.
+3. The final review process has not identified any outstanding issues or concerns.
+4. All project objectives appear to have been met.
+5. No new requirements or changes have emerged during the final review.
+6. The project has maintained alignment with user needs throughout.
+
+These observations suggest the project has reached a successful conclusion with all objectives met.
+[Your response ends]
+
+#### Example 5B: Step 2 - Check for backtracking
 [Your response]
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 5B: Successful Project Completion, Step 2
-Continuing from Example 5A, but this is a SEPARATE STEP.
-
-Step 2: Check plan
+#### Example 5C: Step 3 - Check plan
 [Your response]
 {PROJECT_END_MARKER}
 [Your response ends]
 
-#### Example 6A: Scope Expansion, Step 1
+Note how each step follows logically:
+- Step 1's observations systematically verify that all success criteria have been met.
+- The comprehensive confirmation of completion leads to Step 2's decision that no backtracking is needed.
+- The validation of all objectives being met supports Step 3's decision to mark the project as complete.
+
+#### Example 6: Scope Expansion
+
 [Description of the situation]
 LAST EPISODE: "INVENTORY_1"
 FULL RECORD (summary based on your understanding):
@@ -935,20 +1007,155 @@ FULL RECORD (summary based on your understanding):
 - User requested additional features: "We also need supplier management"
 - Previous steps included basic setup and initial inventory planning
 
-Step 1: Check for backtracking
+#### Example 6A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. The basic inventory system setup has been completed successfully.
+2. A significant new requirement (supplier management) has been introduced.
+3. The new requirement is complementary to, rather than in conflict with, existing work.
+4. The current inventory system design appears to be sound, just incomplete.
+5. The user's request suggests they're thinking ahead about operational needs.
+6. Integration between inventory and supplier systems will need careful planning.
+
+These observations indicate a need to expand the project scope while preserving the work completed so far.
+[Your response ends]
+
+#### Example 6B: Step 2 - Check for backtracking
 [Your response]
 {NO_BACKTRACKING_MARKER}
 [Your response ends]
 
-#### Example 6B: Scope Expansion, Step 2
-Continuing from Example 6A, but this is a SEPARATE STEP.
-
-Step 2: Check plan
+#### Example 6C: Step 3 - Check plan
 [Your response]
 Current plan doesn't account for supplier management requirements.
 
 {PLAN_UPDATE_MARKER} ["INVENTORY_1", "INVENTORY_2", "SUPPLIER_1", "SUPPLIER_2", "INVENTORY_3"]
 [Your response ends]
+
+Note how each step follows logically:
+- Step 1's observations carefully analyze the relationship between existing work and new requirements.
+- The understanding that new requirements complement rather than conflict with existing work leads to Step 2's decision that no backtracking is needed.
+- The observations about integration needs inform Step 3's plan update to interleave supplier management with remaining inventory tasks.
+
+#### Example 7: Dependency Discovery
+
+[Description of the situation]
+LAST EPISODE: "PAYMENT_1"
+FULL RECORD (summary based on your understanding):
+- Attempted to implement payment processing
+- Technical team reported: "We need user authentication before we can implement secure payments"
+- Previous steps included basic setup and UI design
+
+#### Example 7A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. The attempt to implement payment processing has revealed a critical missing dependency.
+2. User authentication is a prerequisite for secure payment processing.
+3. This dependency wasn't identified in the initial planning phase.
+4. The current task cannot proceed safely without this prerequisite.
+5. The discovery suggests a need to review other potential security dependencies.
+6. The work done so far on payments may need to be temporarily set aside.
+
+These observations indicate a need to reorder tasks to address dependencies while preserving existing work.
+[Your response ends]
+
+#### Example 7B: Step 2 - Check for backtracking
+[Your response]
+{NO_BACKTRACKING_MARKER}
+[Your response ends]
+
+#### Example 7C: Step 3 - Check plan
+[Your response]
+We need to insert authentication tasks before payment processing.
+
+{PLAN_UPDATE_MARKER} ["BASICS_1", "AUTH_1", "AUTH_2", "PAYMENT_1", "PAYMENT_2"]
+[Your response ends]
+
+Note how each step follows logically:
+- Step 1's observations identify both the immediate blocking issue and potential systemic planning gaps.
+- The understanding that this is a missing prerequisite rather than incorrect work leads to no backtracking.
+- The dependency realization drives a plan update to insert necessary authentication tasks.
+
+#### Example 8: Partial Success Requiring Iteration
+
+[Description of the situation]
+LAST EPISODE: "UI_DESIGN_1"
+FULL RECORD (summary based on your understanding):
+- Basic UI implementation completed
+- User feedback: "It works, but the layout isn't very intuitive. Users might struggle with it."
+- Performance metrics show acceptable but not optimal user flow
+- Project has some schedule flexibility
+
+#### Example 8A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. The UI implementation is functionally complete and operational.
+2. User testing reveals usability concerns, though not critical failures.
+3. The issues identified are about optimization rather than incorrect implementation.
+4. Metrics suggest room for meaningful improvement in user experience.
+5. Project timeline appears to have capacity for refinement work.
+6. The current state could be acceptable if schedule constraints were tighter.
+
+These observations suggest an opportunity for valuable iteration while maintaining the option to proceed if necessary.
+[Your response ends]
+
+#### Example 8B: Step 2 - Check for backtracking
+[Your response]
+The current UI implementation, while functional, needs refinement for optimal user experience. We should revisit the design phase with usability findings.
+
+{BACKTRACKING_MARKER} UI_DESIGN_1
+[Your response ends]
+
+#### Example 8C: Step 3 - Check plan
+[Your response]
+We should add an optimization cycle to improve usability based on feedback.
+
+{PLAN_UPDATE_MARKER} ["UI_DESIGN_1", "UI_USABILITY_1", "UI_DESIGN_2", "UI_TESTING_1"]
+[Your response ends]
+
+Note how each step follows logically:
+- Step 1's observations carefully weigh the balance between acceptable and optimal outcomes.
+- The opportunity for meaningful improvement drives the decision to backtrack for refinement.
+- The plan update introduces specific usability-focused tasks while maintaining core functionality.
+
+#### Example 9: Resource Constraint Adaptation
+
+[Description of the situation]
+LAST EPISODE: "ML_MODEL_1"
+FULL RECORD (summary based on your understanding):
+- Attempted to begin machine learning model development
+- Technical team reported: "We don't have ML expertise on the team or access to necessary GPU resources"
+- Basic data collection and preprocessing is complete
+
+#### Example 9A: Step 1 - Write observations
+[Your response]
+Based on the project record so far:
+1. A significant resource gap has been identified in both expertise and infrastructure.
+2. The foundational data work completed remains valuable.
+3. The current approach requires resources that aren't readily available.
+4. The project goals might be achievable through alternative approaches.
+5. The resource constraints appear to be long-term rather than temporary.
+6. The data preprocessing work could support different analysis methods.
+
+These observations suggest a need to pivot to an approach that matches available resources.
+[Your response ends]
+
+#### Example 9B: Step 2 - Check for backtracking
+[Your response]
+{NO_BACKTRACKING_MARKER}
+[Your response ends]
+
+#### Example 9C: Step 3 - Check plan
+[Your response]
+We need to replace ML-based tasks with alternative analysis methods that match our resource constraints.
+
+{PLAN_UPDATE_MARKER} ["DATA_PREP_1", "STATISTICAL_ANALYSIS_1", "RULE_BASED_SYSTEM_1", "EVALUATION_1"]
+[Your response ends]
+
+Note how each step follows logically:
+- Step 1's observations analyze both the constraint and the salvageable work.
+- The understanding that existing data work is still valuable leads to no backtracking.
+- The resource limitations drive a plan update to use alternative, feasible approaches.
 """
 
 
@@ -1049,7 +1256,18 @@ And you will see the LAST EPISODE, which is the ID of last episode that the WORK
 #### Reasoning process:
 When you are handed over control, you need to follow the following reasoning process.
 
-##### Step 1. Check whether backtracking is needed.
+##### Step 1. Write your observations so far.
+
+Look at the FULL RECORD of the project so far. Focus **especially** on the LAST EPISODE that was completed.
+
+Now write out your observations of what has happened in the project so far.
+
+It is critical to consider:
+- (1) What have you learned about the project that is likely to be important for deciding the next episode(s) to issue?
+- (2) What have you learned that may require changing the episodes planned?
+- (3) What problems have occurred that may require backtracking or changing of plan?
+
+##### Step 2. Check whether backtracking is needed.
 
 Is the PROJECT not going in a satisfactory direction? Evaluate the FULL RECORD of the project so far. Consider:
 - Were any tasks completed incorrectly?
@@ -1088,7 +1306,7 @@ You will need to correct the issue and try again.
 The system needs to do some work between these steps. Control will be handed back to you after Step 1, and you will \
 be told that you are now in Step 2.
 
-#### Step 2. Check the plan.
+#### Step 3. Check the plan.
 
 Is the plan appropriate given the current state of the PROJECT? Consider:
 - If you have backtracked, is the plan appropriate from the point you have backtracked to? It is likely that you will \
@@ -2295,14 +2513,15 @@ class AgentStore(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
 
-CoordinatorReasoningCotStage = Literal["check_backtracking", "check_plan"]
+CoordinatorReasoningCotStage = Literal["write_observations", "check_backtracking", "check_plan"]
 EpisodeDb = List[Dict[str, Any]]
 Plan = List[str]
 
 
 COORDINATOR_REASONING_COT_STAGE_MAP = {
-    "check_backtracking": "Step 1: Check for backtracking.",
-    "check_plan": "Step 2: Check the plan.",
+    "write_observations": "1: Write observations.",
+    "check_backtracking": "2: Check for backtracking.",
+    "check_plan": "Step 3: Check the plan.",
 }
 
 
@@ -2360,7 +2579,7 @@ class OpenAICotEngine(OpenAIEngineBase):
                 agent_state={
                     "coordinator": m2d(
                         CoordinatorCotState(
-                            coordinator_reasoning_stage="check_backtracking",
+                            coordinator_reasoning_stage="write_observations",
                             current_plan=PLAN,
                             last_episode="None",
                         )
@@ -2734,7 +2953,18 @@ class OpenAICotEngine(OpenAIEngineBase):
 
             return self.session.engine_state
 
-        if last_message_coordinator_state.coordinator_reasoning_stage == "check_backtracking":
+        if last_message_coordinator_state.coordinator_reasoning_stage == "write_observations":
+            # We aren't doing any special parsing in this step.
+            message_text = last_message.text
+            
+            # Update EngineState state.
+            coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
+            coordinator_state.coordinator_reasoning_stage = "check_backtracking"
+            # coordinator_state.last_episode = self.get_current_last_episode()
+            self.session.engine_state.agent_state["coordinator"] = m2d(coordinator_state)
+            self.update_state()
+
+        elif last_message_coordinator_state.coordinator_reasoning_stage == "check_backtracking":
             try:
                 message_text = last_message.text
 
@@ -2803,35 +3033,6 @@ class OpenAICotEngine(OpenAIEngineBase):
 
                 next_episode = get_next_episode(plan, coordinator_state.last_episode)
 
-                # # Content between two triple backticks.
-                # raw_content = extract_content_between_two_triple_backticks(last_message.text)
-                # # engine_log("raw_content")
-                # # engine_log(raw_content)
-
-                # # Try to parse it to Python list of strings
-                # subtask_selection = parse_python_list_of_strings(raw_content)
-                # # engine_log("subtask_selection")
-                # # engine_log(subtask_selection)
-
-                # # Validate the format of the subtask selection.
-                # validated_subtask_selection = validate_subtask_selection(subtask_selection)
-                # # engine_log("validated_subtask_selection")
-                # # engine_log(validated_subtask_selection)
-
-                # # Update statuses in the structured plan.
-                # updated_structured_plan = update_statuses_in_structured_plan(
-                #     structured_plan=self.get_current_plan(),
-                #     status_updates=[
-                #         {"subtask_id": subtask_id, "subtask_status": "in_progress"}
-                #         for subtask_id in validated_subtask_selection
-                #     ],
-                # )
-
-                # # Update task statuses in the structured plan.
-                # updated_structured_plan = update_task_statuses_in_structured_plan(
-                #     structured_plan=updated_structured_plan,
-                # )
-
                 # Create the actual task description for the worker.
                 try:
                     worker_actual_task = create_worker_actual_task(
@@ -2855,8 +3056,6 @@ class OpenAICotEngine(OpenAIEngineBase):
                 # engine_log(worker_actual_task)
 
                 # Update EngineState state.
-                # coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
-                # coordinator_state.coordinator_reasoning_stage = "done"
                 coordinator_state.current_plan = plan
                 coordinator_state.last_episode = next_episode
                 self.session.engine_state.agent_state["coordinator"] = m2d(coordinator_state)
@@ -2885,20 +3084,14 @@ class OpenAICotEngine(OpenAIEngineBase):
                 # Update state.
                 self.update_state()
 
-                print(worker_actual_task)
-
-                # raise ValueError("STOP HERE")
-
+                engine_log(worker_actual_task)
                 # engine_log("EngineState at the end of `dispatch_next_subtasks`.")
                 # engine_log("*" * 100)
                 # engine_log(self.session.engine_state)
                 # engine_log("*" * 100)
 
             except ValueError as e:
-                # raise
-                # TODO:
                 exc_str = str(e)
-                # raise
                 self._append_message(
                     message=Message(
                         key=KeyGeneration.generate_message_key(),
@@ -2925,7 +3118,7 @@ class OpenAICotEngine(OpenAIEngineBase):
 
             # Update coordinator state:
             coordinator_state = d2m(self.session.engine_state.agent_state["coordinator"], CoordinatorCotState)
-            coordinator_state.coordinator_reasoning_stage = "check_backtracking"
+            coordinator_state.coordinator_reasoning_stage = "write_observations"
             self.session.engine_state.agent_state["coordinator"] = m2d(coordinator_state)
 
             self._set_initial_messages(agent=self.agents_.coordinator)
