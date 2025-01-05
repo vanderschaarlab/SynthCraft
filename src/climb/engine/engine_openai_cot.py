@@ -509,8 +509,9 @@ Step 1. Generate code to show:
     - % of total rows that have missing values.
 Step 2. Explain to the user what the hyperimpute tool will do and check they are happy to use it.
 Step 3. If there are still missing values in the dataset:
-    - Use the `hyperimpute_imputation` tool (do not write own code for imputation).
-After imputation, generate code to show the per-column % missing values again, and confirm with the user that there are no more missing values.
+    - Use the `hyperimpute_imputation_train_test` tool (do not write own code for imputation).
+After imputation, generate code to show the per-column % missing values again, and confirm with the user that there \
+are no more missing values.
 """,
         "coordinator_guidance": """
 **IMPORTANT**:
@@ -521,10 +522,11 @@ stage. Hence, you MUST issue this episode IF there are missing values.
 * Use the LATEST version of the dataset, after all the previous steps have been completed. Check the conversation \
 history and the modification date-time of the files in the working directory to ensure this.
 * Save the imputed dataset(s) with a suffix `_hyperimputed` in the filename.
+
 * IF there is a test set, you *must* provide BOTH the training and test dataset paths to the tool. It will fit on the \
 training data and transform the test data.
 """,
-        "tools": ["hyperimpute_imputation"],
+        "tools": ["hyperimpute_imputation_train_test"],
     },
     {
         "episode_id": "DP-AM_1",
