@@ -190,7 +190,10 @@ it is clear from the filenames, suggest this to the user and ask for confirmatio
         "selection_condition": None,
         "episode_name": "Check hardware",
         "episode_details": """
-Use the `hardware_info` tool to get information about the user's hardware. Using the report, determine whether the user's hardware is suitable for the task. As a rough guide, we want a machine with a CPU with at least 4 cores, 16GB of RAM, and a GPU with at least 4GB of memory. If the user's hardware is not suitable, suggest they find a machine that meets these requirements or use a cloud service, but allow the option to proceed anyway.
+Use the `hardware_info` tool to get information about the user's hardware. Using the report, determine whether the \
+user's hardware is suitable for the task. As a rough guide, we want a machine with a CPU with at least 4 cores, \
+16GB of RAM, and a GPU with at least 4GB of memory. If the user's hardware is not suitable, suggest they find a \
+machine that meets these requirements or use a cloud service, but allow the option to proceed anyway.
 """,
         "coordinator_guidance": None,
         "worker_guidance": None,
@@ -200,9 +203,13 @@ Use the `hardware_info` tool to get information about the user's hardware. Using
         "episode_id": "ENV_3",
         "status_reason": None,
         "selection_condition": None,
-        "episode_name": "Check data file can be loaded",
+        "episode_name": "Check data file(s) can be loaded",
         "episode_details": """
-Generate code to check whether the data file can be loaded with `pd.read_csv(<file_path>)`, as that is how the tools expect it. CHECK that the loaded dataframe has MORE THAN ONE column and more than one row - otherwise it usually means the separator or delimiter is wrong. Try to find a way to load the file (e.g. try different delimiters), and then save the modified file in way that can be loaded with `pd.read_csv(<file_path>)`. If not possible, suggest to the user that they fix the data and upload it again.""",
+Generate code to check whether the data file(s) can be loaded with `pd.read_csv(<file_path>)`, as that is how the \
+tools expect it. CHECK that the loaded dataframe has MORE THAN ONE column and more than one row - otherwise it usually \
+means the separator or delimiter is wrong. Try to find a way to load the file (e.g. try different delimiters), and \
+then save the modified file in way that can be loaded with `pd.read_csv(<file_path>)`. If not possible, suggest to \
+the user that they fix the data and upload it again.""",
         "coordinator_guidance": None,
         "worker_guidance": """
 - You MUST NOT use any tool here. DO NOT SUMMON ANY TOOLS.
@@ -216,6 +223,8 @@ CODE:
 ```
 ... your code to complete the episode ...
 ```
+
+- If the user has provided both a training and a test dataset files, you must check *both*.
 """,
         "tools": [],
     },
@@ -241,7 +250,10 @@ Ask the user whether they would like to provide high-level information about the
         "episode_details": """
 1. Ask the user to describe the experiment setup and the research question they wish to investigate.
 2. Confirm with the user what the name of the target column in their dataset is.
-3. (Conditional step) Only IF you suspect that the user wants to do SURVIVAL ANALYSIS, confirm with the user that (A) the target column represents the event (usually 1 = event, and 0 = censoring) and (B) that they have a column that represents the time to the event. Make a mental note of this. If the user has columns that can be transformed into these, that is also not a problem, and another agent will handle this later.
+3. (Conditional step) Only IF you suspect that the user wants to do SURVIVAL ANALYSIS, confirm with the user that (A) \
+the target column represents the event (usually 1 = event, and 0 = censoring) and (B) that they have a column that \
+represents the time to the event. Make a mental note of this. If the user has columns that can be transformed into \
+these, that is also not a problem, and another agent will handle this later.
 """,
         "coordinator_guidance": None,
         "worker_guidance": None,
@@ -259,13 +271,17 @@ Given what the user has told you, ask yourself two things:
         > Example problem: more than one row per patient, but the tools expect one row per patient.
         > Think of any such problems...
     Q2: Does the AutoPrognosis set of tools that you have access to support the task?
-- If the answer to Q1 is NO, think whether the data can be somehow transformed to fit the task. If you think this is possible, suggest this to the user. If not, suggest how the user can get the right data.
-- If the answer to Q2 is NO, apologize to the user, mention that your capabilities are still being enhanced, but for now this task cannot be performed.
-- If on the basis of the above you think the task CAN be performed, proceed to the next step. Otherwise, ask the user if you can help them with anything else.
+- If the answer to Q1 is NO, think whether the data can be somehow transformed to fit the task. If you think this is \
+possible, suggest this to the user. If not, suggest how the user can get the right data.
+- If the answer to Q2 is NO, apologize to the user, mention that your capabilities are still being enhanced, but for \
+now this task cannot be performed.
+- If on the basis of the above you think the task CAN be performed, proceed to the next step. Otherwise, ask the \
+user if you can help them with anything else.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
-DO NOT actually execute the AutoPrognosis tools here! Use their specifications for your information, but DO NOT invoke them!
+DO NOT actually execute the AutoPrognosis tools here! Use their specifications for your information, but DO NOT \
+invoke them!
 """,
         "tools": ["autoprognosis_classification", "autoprognosis_regression", "autoprognosis_survival"],
     },
@@ -275,7 +291,16 @@ DO NOT actually execute the AutoPrognosis tools here! Use their specifications f
         "selection_condition": None,
         "episode_name": "Exclude/keep columns",
         "episode_details": """
-Generate code to list the names of all the columns in the dataset and print this clearly to the user. Ask the user if they would like to exclude certain columns from the analysis, or conversely, only keep certain columns. If so, find out which columns these are. Then generate code to drop the columns that the user wants to exclude or to only keep the columns that the user wants to keep. Save this modified dataset with a suffix `_user_cols` in the filename.
+1. Generate code to list the names of all the columns in the dataset and print this clearly to the user.
+    - IF the user provided both a training and a test dataset, you must (1) *clearly* list the columns of both datasets. \
+and (2) programmatically check that the columns are the same in both datasets.
+    - IF the columns are not the same, work with the user to decide which columns to keep and which to exclude. You must \
+achieve the same columns in both datasets. IF this is not possible STOP the task.
+
+2. Ask the user if they would like to exclude certain columns from the analysis, or conversely, only keep certain columns. \
+If so, find out which columns these are. Then generate code to drop the columns that the user wants to exclude or to \
+only keep the columns that the user wants to keep. Save the modified dataset(s) with the suffix `_user_cols` in the \
+filename.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
@@ -290,14 +315,18 @@ When generating this code, print the columns line by line (not as one list) so t
         "episode_name": "Perform EDA",
         "episode_details": """
 Perform exploratory data analysis on the data using the `EDA` tool.
+
+If the user provided both a training and a test dataset, you must use the tool with the TRAINING dataset only.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
 **IMPORTANT**: This step needs executing a TOOL called `EDA`. **DO NOT** write your own code for this step!
 
-- The `target` (name of the target column) argument for the EDA tool should be clear from previous steps, in most cases. PROVIDE it to the tool unless definitely not possible.
-
-- After executing the tool, provide the user with a summary of what you see in the EDA. Use your best understanding of data science and machine learning. **DO NOT** make suggestions of what needs to be done next! That will be handled later in the process. **Just summarize your learnings.**
+- The `target` (name of the target column) argument for the EDA tool should be clear from previous steps, in most cases. \
+PROVIDE it to the tool unless definitely not possible.
+- After executing the tool, provide the user with a summary of what you see in the EDA. Use your best understanding of \
+data science and machine learning. **DO NOT** make suggestions of what needs to be done next! That will be handled \
+later in the process. **Just summarize your learnings.**
 """,
         "tools": ["EDA"],
     },
@@ -308,14 +337,17 @@ Perform exploratory data analysis on the data using the `EDA` tool.
         "episode_name": "Generate descriptive statistics",
         "episode_details": """
 - Ask the user if they would like to generate descriptive statistics. If yes:
-- Generate descriptive statistics using the `descriptive_statistics` tool.
-- Suggest that the user reviews the EDA and descriptive statistics at this stage. Ask them if they have reviewed these and if they have any questions (answer as needed). Only then proceed to the next step.
+- Generate descriptive statistics using the `descriptive_statistics` tool. If the user provided both a training and a \
+test dataset, you must use the tool with the TRAINING dataset only.
+- Suggest that the user reviews the EDA and descriptive statistics at this stage. Ask them if they have reviewed \
+these and if they have any questions (answer as needed). Only then proceed to the next step.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
-(1) After executing the descriptive statistics tool, provide the user with a summary of what you found out. Use your best understanding of medical research and data science.
-
-(2) Check the tool logs for the names of the figures generated by the tool. Think about which ones are most important (let's say five most important ones). Then use your rules for showing images to the user to show these images for them to review.
+(1) After executing the descriptive statistics tool, provide the user with a summary of what you found out. Use your \
+best understanding of medical research and data science.
+(2) Check the tool logs for the names of the figures generated by the tool. Think about which ones are most important \
+(let's say five most important ones). Then use your rules for showing images to the user to show these images for them to review.
 
 **IMPORTANT**: to show an image simply include `<WD>/image_name.extension` in your message. Always use this EXACT format when showing an image!
 
@@ -330,7 +362,11 @@ Perform exploratory data analysis on the data using the `EDA` tool.
         "selection_condition": "Only if data analysis reveals fewer than 50 samples",
         "episode_name": "Warn about small sample size if necessary",
         "episode_details": """
-ONLY IF there are fewer than about 50 samples, warn the user that the results may not be reliable as there is not enough data. Allow to continue if the user is happy with that. Skip this step completely if there are more than 50 samples.
+ONLY IF there are fewer than about 50 samples, warn the user that the results may not be reliable as there is not \
+enough data. Allow to continue if the user is happy with that. Skip this step completely if there are more than \
+50 samples.
+
+Note: this refers to the number of samples in the training dataset.
 """,
         "coordinator_guidance": None,
         "worker_guidance": None,
@@ -348,14 +384,19 @@ Reminder: this task is only relevant if the user's problem is SURVIVAL ANALYSIS.
 - Make sure that you know exactly which column represents the time to the event and which column represents the event.
 - Generate code to show the Kaplan-Meier plot. Hint: use the `lifelines` library.
 - Show the plot to the user.
+
+Do this this for the training dataset. If the user also provided a test dataset, ask them if they would like to see \
+the plot for the test dataset as well and repeat the process if they do.
 """,
         "coordinator_guidance": """
-Review the conversation history to see if the user's task is likely to be survival analysis. If it seems like it is, you MUST issue this episode, do NOT skip it in that case!
+Review the conversation history to see if the user's task is likely to be survival analysis. If it seems like it is, \
+you MUST issue this episode, do NOT skip it in that case!
 """,
         "worker_guidance": """
 Important:
 * To show the plot you must save it as an image file in the working directory.
-* After the code has been run, and if the plot was successfully saved (check CURRENT WORKING DIRECTORY contents to confirm this), show it to the user using the `<WD>/image_name.extension` format in your next message.
+* After the code has been run, and if the plot was successfully saved (check CURRENT WORKING DIRECTORY contents to \
+confirm this), show it to the user using the `<WD>/image_name.extension` format in your next message.
 """,
         "tools": [],
     },
