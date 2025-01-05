@@ -1975,6 +1975,32 @@ def handle_user_input() -> None:
                     # NOTE: Why st.stop()? It seems otherwise streamlit tends to take the input as None
                     # and continue running, breaking the flow.
                     st.stop()
+
+            elif input_request.kind == "multiple_files":
+                file_types = input_request.extra["file_types"]
+                with st.chat_message("assistant"):
+                    st_uploaded_files = st.file_uploader(
+                        input_request.description or "",
+                        accept_multiple_files=True,
+                        type=file_types,
+                    )
+
+                print("st_uploaded_files [MULTIPLE]:", st_uploaded_files)
+                if st_uploaded_files:  # Should not be `None` or `[]`.
+                    input_request.received_input = [
+                        UploadedFileAbstraction(
+                            name=st_uploaded_file.name,  # type: ignore
+                            content=st_uploaded_file.getvalue(),  # type: ignore
+                        )
+                        for st_uploaded_file in st_uploaded_files
+                    ]
+                    engine().get_state().ui_controlled.input_request = input_request
+                    engine().update_state()
+                else:
+                    # NOTE: Why st.stop()? It seems otherwise streamlit tends to take the input as None
+                    # and continue running, breaking the flow.
+                    st.stop()
+
             else:
                 raise NotImplementedError("Only file uploads are supported at the moment")
 

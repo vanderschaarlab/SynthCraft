@@ -159,7 +159,8 @@ class EngineParameter(pydantic.BaseModel):
 
 InteractionStage = Literal["reason", "output", "await_user_input"]
 
-UserInputKind = Literal["text", "file"]
+UserInputKind = Literal["text", "file", "multiple_files"]
+# TODO: ^ Refactor to avoid file and multiple files being separate.
 UserInputRequestKey = str
 
 
@@ -192,6 +193,15 @@ class UserInputRequest(pydantic.BaseModel):
                     f"Expected 'received_input' to be of type '{UploadedFileAbstraction.__name__}' "
                     f"but got {type(self.received_input)}."
                 )
+        if self.kind == "multiple_files":
+            if not isinstance(self.received_input, List):
+                raise ValueError("Expected 'received_input' to be of type 'List' but got something else.")
+            for item in self.received_input:
+                if not isinstance(item, UploadedFileAbstraction):
+                    raise ValueError(
+                        f"Expected 'received_input' to be of type '{UploadedFileAbstraction.__name__}' "
+                        f"but got {type(item)}."
+                    )
         elif self.kind == "text":
             if not isinstance(self.received_input, str):
                 raise ValueError("Expected 'received_input' to be of type 'str' but got something else.")

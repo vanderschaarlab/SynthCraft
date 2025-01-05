@@ -168,15 +168,21 @@ EPISODE_DB = [
         "episode_id": "ENV_1",
         "selection_condition": None,
         "status_reason": None,
-        "episode_name": "Upload data file",
+        "episode_name": "Upload data files",
         "episode_details": """
 - Introduce yourself as an AI assistant that will help the user with their clinical machine learning study.
-- Ask the user if they have their data file ready as a CSV file.
-- Then summon the `upload_data_file` tool so that the user can upload their data file.
+- Ask the user if they have their data file(s) ready as a CSV file. Explain briefly what a training dataset and a test \
+dataset are. Tell the user that they have to upload their training dataset, and they can also upload a test dataset if \
+they have it.
+- Wait for user response.
+- If the user has files ready, proceed to summoning the tool. Otherwise, STOP the task.
+- Then summon the `upload_data_multiple_files` tool so that the user can upload their data file(s).
+- Finally, confirm with the user which file is the training dataset and which is the test dataset (if applicable). If \
+it is clear from the filenames, suggest this to the user and ask for confirmation.
 """,
         "coordinator_guidance": None,
         "worker_guidance": None,
-        "tools": ["upload_data_file"],
+        "tools": ["upload_data_multiple_files"],
     },
     {
         "episode_id": "ENV_2",
