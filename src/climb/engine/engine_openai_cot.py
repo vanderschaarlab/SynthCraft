@@ -1,6 +1,7 @@
 import ast
 import copy
 import re
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import pydantic
@@ -46,6 +47,9 @@ DEBUG__USE_FILTER_TOOLS = True  # If False, the worker will always be given all 
 
 # region: === Prompt templates ===
 
+# TODO: Make an engine parameter:
+N_LOOKAHEAD = 3
+
 LOG_PREAMBLE = "HERE IS THE LOG OF ALL THE AGENT-USER CONVERSATIONS SO FAR"
 LAST_WORKER_LOG_PREAMBLE = "BELOW IS THE LOG OF THE WORKER AGENT AND USER CONVERSATION FOR THE *LAST TASK*"
 # ---
@@ -59,6 +63,8 @@ WD_CONTENTS_REPLACE_MARKER = "{WD_CONTENTS}"
 
 EPISODE_DB_REPLACE_MARKER = "{EPISODE_DB}"
 PLAN_REPLACE_MARKER = "{PLAN}"
+PLAN_COMPLETED_REPLACE_MARKER = "{PLAN_COMPLETED}"
+PLAN_REMAINING_REPLACE_MARKER = "{PLAN_REMAINING}"
 LAST_EPISODE_REPLACE_MARKER = "{LAST_EPISODE}"
 REASONING_STEP_REPLACE_MARKER = "{REASONING_STEP}"
 
@@ -788,6 +794,8 @@ PLAN = [
     "END_1",
 ]
 
+
+# TODO ================== COORDINATOR EXAMPLES ================== #
 
 COORDINATOR_EXAMPLES = f"""
 ### Examples
@@ -1545,6 +1553,11 @@ Both demonstrate how Step 3's analysis directly informs plan updates in Step 4.
 """
 
 
+COORDINATOR_EXAMPLES = "Use your best judgement, we do not have examples at the moment."
+
+# TODO ================== COORDINATOR EXAMPLES ================== #
+
+
 COORDINATOR_ACTUAL_PROJECT_DESCRIPTION = """
 You are a powerful AI assistant. You help your users, who are usually medical researchers, \
 clinicians, or pharmacology experts to perform machine learning studies on their data.
@@ -1569,6 +1582,16 @@ COORDINATOR_REMINDER = f"""
 # Reminder - PLAN:
 ```text
 {PLAN_REPLACE_MARKER}
+```
+
+* Completed episodes:
+```text
+{PLAN_COMPLETED_REPLACE_MARKER}
+```
+
+* Remaining episodes:
+```text
+{PLAN_REMAINING_REPLACE_MARKER}
 ```
 
 # Reminder - LAST EPISODE:
@@ -1689,53 +1712,39 @@ You will need to correct the issue and try again.
 The system needs to do some work between these steps. Control will be handed back to you after Step 1, and you will \
 be told that you are now in Step 2.
 
-##### Step 3. Analyze next episode
+##### Step 3. Analyze upcoming episodes
 
-After determining whether backtracking is needed, analyze the next episode that would be executed in the plan.
-This is either:
-- The episode after LAST_EPISODE in the current plan, or,
-- If backtracking was chosen, the episode after the backtrack point.
+After determining whether backtracking is needed, analyze **{N_LOOKAHEAD} upcoming episodes** that would be executed in the plan.
+These are either:
+- Episodes after LAST_EPISODE in the current plan, or,
+- If backtracking was chosen, all episodes after the backtrack point.
 
-**You can find this information in the EPISODES DATABASE.**
+For each of the **{N_LOOKAHEAD} upcoming episodes** episode in the plan, analyze its necessity and appropriateness \
+using this exact format:
 
-First, identify and document the episode details from in this exact format:
-Episode ID: <ID>
-Selection Condition: <"None" or the specific condition text>
-Episode Name: <NAME>
+* === EPISODE ===
 
-Then, analyze the episode's appropriateness by answering BOTH questions:
-
-(1) Necessity Analysis:
-    - Is this episode still necessary given the current project state?
-    - Could it be safely removed without compromising project goals?
-    - What specific value does it add at this point in the project?
-
-(2) Appropriateness Analysis:
-    - Is this episode (and its selection condition if any) appropriate for the current project state?
-    - Does it need to be replaced with a different episode?
-    - Are there any risks or concerns with executing this episode now?
-
-You will then write a conclusion about whether the episode should be kept as-is, modified, or removed.
-You then finish with stating whether this implies a plan update or not.
-
-Your response must use **this exact format**:
-[Your response]
-Episode ID: EXAMPLE_1
-Selection Condition: <selection condition text>
-Episode Name: Example Task
+- Episode ID: <ID>
+- Selection Condition: <"None" or condition text>
+- Name: <NAME>
 
 Analysis:
-1. Necessity: <your detailed analysis of whether the episode is necessary>.
-2. Appropriateness: <your detailed analysis of whether the episode is appropriate>.
+1. Necessity: <Analysis of whether the episode is still needed and what value it adds>
+2. Appropriateness: <Analysis of fit with current state and any risks/dependencies>
 
-Conclusion: <your summary conclusion about whether this episode should be kept as-is, modified, or removed>.
+Episode Conclusion: <Keep/Replace/Remove and why>
 
-REQUIRES PLAN UPDATE?: NO
-[Your response ends]
+* === END EPISODE ===
 
-**IMPORTANT**: This step's conclusion will inform your decisions in Step 4 (Plan Update). If you determine that the \
-episode needs to be changed or removed, you must reflect this in your plan update decisions.
-**IMPORTANT** Like all other steps, Step 3 must be issued as a separate message. Do not combine it with \
+[Repeat for each upcoming episode...]
+
+After analyzing all episodes, provide, in this exact format:
+
+Overall Conclusion: <Summary of cross-episode issues and specific recommendations>
+
+REQUIRES PLAN UPDATE?: <YES/NO>
+
+**IMPORTANT**: Like all other steps, Step 3 must be issued as a separate message. Do not combine it with 
 Steps 1, 2, or 4. The system needs to process each step separately.
 
 If your response format is incorrect, you will receive:
@@ -1821,6 +1830,16 @@ These examples are for your reference, DO NOT confuse them with the ACTUAL PROJE
 ### PLAN:
 ```text
 {PLAN_REPLACE_MARKER}
+```
+
+* Completed episodes:
+```text
+{PLAN_COMPLETED_REPLACE_MARKER}
+```
+
+* Remaining episodes:
+```text
+{PLAN_REMAINING_REPLACE_MARKER}
 ```
 
 
@@ -2932,6 +2951,42 @@ def parse_plan_update(input_text, plan_update_marker, no_plan_update_marker):
     raise ValueError("Neither plan_update_marker nor no_plan_update_marker is present in the input.")
 
 
+def get_completed_and_remaining_episodes(
+    plan: List[str], selected_episode: str, include_selected: bool = True
+) -> Tuple[List[str], List[str]]:
+    if selected_episode == "None":  # Special marker for no episode selected == start of the project.
+        return [], plan
+
+    completed_episodes = []
+    for episode_id in plan:
+        if episode_id != selected_episode:
+            completed_episodes.append(episode_id)
+        else:
+            break
+    if include_selected:
+        completed_episodes.append(selected_episode)
+
+    remaining_episodes = []
+    for episode_id in plan:
+        if episode_id not in completed_episodes and episode_id != selected_episode:
+            remaining_episodes.append(episode_id)
+
+    return completed_episodes, remaining_episodes
+
+
+def format_episodes_id_name(
+    episode_db: List[Dict[str, Any]],
+    episode_ids: List[str],
+) -> str:
+    if len(episode_ids) == 0:
+        return "No episodes."
+    formatted = ""
+    for episode_id in episode_ids:
+        episode = [s for s in episode_db if s["episode_id"] == episode_id][0]
+        formatted += f"- {episode['episode_id']}: {episode['episode_name']}\n"
+    return formatted
+
+
 def create_worker_actual_task(
     plan: List[str],
     episode_db: List[Dict[str, Any]],
@@ -3012,6 +3067,161 @@ to these tasks.
     return task_description_for_worker
 
 
+@dataclass
+class Episode:
+    """Represents a single episode with its details and analysis.
+
+    Args:
+        episode_id (str): Unique identifier for the episode.
+        selection_condition (Optional[str]): Condition for episode selection. Defaults to None.
+        name (str): Name or title of the episode.
+        analysis (List[str]): List of analysis points.
+        conclusion (str): Conclusion drawn from the episode analysis.
+    """
+
+    episode_id: str
+    selection_condition: Optional[str]
+    name: str
+    analysis: List[str]
+    conclusion: str
+
+
+@dataclass
+class ParsedDocument:
+    """Represents the parsed document containing episodes and overall conclusion.
+
+    Args:
+        episodes (List[Episode]): List of parsed episodes.
+        overall_conclusion (str): Overall conclusion about all episodes.
+        requires_plan_update (bool): Flag indicating if plan update is required.
+    """
+
+    episodes: List[Episode]
+    overall_conclusion: str
+    requires_plan_update: bool
+
+
+class EpisodeAnalysisParser:
+    """Parser for episode-based text documents."""
+
+    # Constants for parsing.
+    EPISODE_START = "* === EPISODE ==="
+    EPISODE_END = "* === END EPISODE ==="
+
+    def parse_document(self, text: str) -> ParsedDocument:
+        """Parse the complete document containing episodes and conclusions.
+
+        Args:
+            text (str): Raw text document to parse.
+
+        Returns:
+            ParsedDocument: Parsed document with episodes and conclusions.
+
+        Raises:
+            ValueError: If the document format is invalid or required sections are missing.
+        """
+        # Split the document into episodes and conclusion sections.
+        parts = text.strip().split(self.EPISODE_END)
+        if len(parts) < 2:
+            raise ValueError("Document must contain at least one episode and a conclusion section.")
+
+        # Parse episodes.
+        episodes = []
+        for part in parts[:-1]:  # Last part contains conclusion.
+            if not part.strip():
+                continue
+            episodes.append(self._parse_episode(part.strip()))
+
+        # Parse conclusion section.
+        conclusion_section = parts[-1].strip()
+        overall_conclusion, requires_update = self._parse_conclusion_section(conclusion_section)
+
+        return ParsedDocument(
+            episodes=episodes, overall_conclusion=overall_conclusion, requires_plan_update=requires_update
+        )
+
+    def _parse_episode(self, episode_text: str) -> Episode:
+        """Parse a single episode section.
+
+        Args:
+            episode_text (str): Text content of a single episode.
+
+        Returns:
+            Episode: Parsed episode object.
+
+        Raises:
+            ValueError: If the episode format is invalid or required fields are missing.
+        """
+        # if not episode_text.startswith(self.EPISODE_START):
+        #     raise ValueError("Episode must start with the correct marker.")
+
+        # Extract details using regex.
+        episode_id_match = re.search(r"Episode ID: (.+)", episode_text)
+        condition_match = re.search(r"Selection Condition: (.+)", episode_text)
+        name_match = re.search(r"Name: (.+)", episode_text)
+
+        if not all([episode_id_match, condition_match, name_match]):
+            raise ValueError("Episode is missing required fields (ID, Selection Condition, or Name).")
+
+        # Extract and clean analysis points.
+        analysis_section = re.search(r"Analysis:\s*((?:(?:\d+\. .+\n?)+))", episode_text)
+        if not analysis_section:
+            raise ValueError("Episode is missing Analysis section.")
+
+        analysis_text = analysis_section.group(1)
+
+        # Check for required analysis components.
+        if not re.search(r"\d+\.\s+Necessity:", analysis_text):
+            raise ValueError("Analysis section must contain a 'Necessity:' point.")
+        if not re.search(r"\d+\.\s+Appropriateness:", analysis_text):
+            raise ValueError("Analysis section must contain an 'Appropriateness:' point.")
+
+        analysis_points = [point.strip() for point in re.findall(r"\d+\. (.+)", analysis_text)]
+
+        # Extract conclusion.
+        conclusion_match = re.search(r"Episode Conclusion: (.+)", episode_text)
+        if not conclusion_match:
+            raise ValueError("Episode is missing Conclusion.")
+
+        return Episode(
+            episode_id=episode_id_match.group(1).strip(),
+            selection_condition=None
+            if condition_match.group(1).strip().lower() == "none"
+            else condition_match.group(1).strip(),
+            name=name_match.group(1).strip(),
+            analysis=analysis_points,
+            conclusion=conclusion_match.group(1).strip(),
+        )
+
+    def _parse_conclusion_section(self, conclusion_text: str) -> tuple[str, bool]:
+        """Parse the overall conclusion section.
+
+        Args:
+            conclusion_text (str): Text of the conclusion section.
+
+        Returns:
+            tuple[str, bool]: Tuple containing overall conclusion and plan update requirement.
+
+        Raises:
+            ValueError: If the conclusion format is invalid or required parts are missing.
+        """
+        # Extract overall conclusion.
+        conclusion_match = re.search(
+            r"Overall Conclusion: (.+?)(?=\n*REQUIRES PLAN UPDATE\?)", conclusion_text, re.DOTALL
+        )
+        update_match = re.search(r"REQUIRES PLAN UPDATE\?: (.+)", conclusion_text)
+
+        if not all([conclusion_match, update_match]):
+            raise ValueError(
+                "Conclusion section is missing required parts (`Overall Conclusion:` or `REQUIRES PLAN UPDATE?:`)."
+            )
+
+        overall_conclusion = conclusion_match.group(1).strip()
+        requires_update = update_match.group(1).strip().upper() == "YES"
+
+        return overall_conclusion, requires_update
+
+
 # endregion
 
 
@@ -3022,7 +3232,9 @@ class AgentStore(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
 
-CoordinatorReasoningCotStage = Literal["write_observations", "check_backtracking", "analyze_next_episode", "check_plan"]
+CoordinatorReasoningCotStage = Literal[
+    "write_observations", "check_backtracking", "analyze_upcoming_episodes", "check_plan"
+]
 EpisodeDb = List[Dict[str, Any]]
 Plan = List[str]
 
@@ -3030,7 +3242,7 @@ Plan = List[str]
 COORDINATOR_REASONING_COT_STAGE_MAP = {
     "write_observations": "1: Write observations.",
     "check_backtracking": "2: Check for backtracking.",
-    "analyze_next_episode": "3. Analyze next episode.",
+    "analyze_upcoming_episodes": "3. Analyze upcoming episodes.",
     "check_plan": "Step 4: Check the plan.",
 }
 
@@ -3117,12 +3329,17 @@ class OpenAICotEngine(OpenAIEngineBase):
         else:
             delegated_content = None
 
+        completed_episodes, remaining_episodes = get_completed_and_remaining_episodes(
+            PLAN, self.get_current_last_episode()
+        )
         system_message_text = update_templates(
             body_text=agent.system_message_template,
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
                 EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(EPISODE_DB),
-                PLAN_REPLACE_MARKER: rich.pretty.pretty_repr(PLAN),
+                PLAN_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, PLAN),
+                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, completed_episodes),
+                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, remaining_episodes),
                 WORKER_ACTUAL_TASK_REPLACE_MARKER: str(delegated_content),  # Only applicable for worker.
                 MAX_CHARS_REPLACE_MARKER: str(self.max_tokens_per_message),
                 # Privacy mode templates:
@@ -3198,6 +3415,9 @@ class OpenAICotEngine(OpenAIEngineBase):
         # ^ This will also remove the old system message.
         last_worker_messages = self.exclude_system_messages(last_worker_messages)
 
+        completed_episodes, remaining_episodes = get_completed_and_remaining_episodes(
+            self.get_current_plan(), self.get_current_last_episode()
+        )
         coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
         coordinator_system_message = last_coordinator_messages[0]
         coordinator_system_message.text = update_templates(
@@ -3205,7 +3425,9 @@ class OpenAICotEngine(OpenAIEngineBase):
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
                 EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(EPISODE_DB),
-                PLAN_REPLACE_MARKER: rich.pretty.pretty_repr(self.get_current_plan()),
+                PLAN_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, self.get_current_plan()),
+                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, completed_episodes),
+                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, remaining_episodes),
                 LAST_EPISODE_REPLACE_MARKER: self.get_current_last_episode(),
                 REASONING_STEP_REPLACE_MARKER: COORDINATOR_REASONING_COT_STAGE_MAP[
                     coordinator_state.coordinator_reasoning_stage
@@ -3270,12 +3492,17 @@ class OpenAICotEngine(OpenAIEngineBase):
 
         # [reminder]
         # Reminder message - to avoid going beyond the subtasks.
+        completed_episodes, remaining_episodes = get_completed_and_remaining_episodes(
+            self.get_current_plan(), self.get_current_last_episode()
+        )
         reminder_message_text = update_templates(
             body_text=MESSAGE_OPTIONS["coordinator"]["reminder"],
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
                 EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(EPISODE_DB),
-                PLAN_REPLACE_MARKER: rich.pretty.pretty_repr(self.get_current_plan()),
+                PLAN_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, self.get_current_plan()),
+                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, completed_episodes),
+                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, remaining_episodes),
                 LAST_EPISODE_REPLACE_MARKER: self.get_current_last_episode(),
                 REASONING_STEP_REPLACE_MARKER: COORDINATOR_REASONING_COT_STAGE_MAP[
                     coordinator_state.coordinator_reasoning_stage
@@ -3492,7 +3719,7 @@ class OpenAICotEngine(OpenAIEngineBase):
 
                 # Update EngineState state.
                 coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
-                coordinator_state.coordinator_reasoning_stage = "analyze_next_episode"
+                coordinator_state.coordinator_reasoning_stage = "analyze_upcoming_episodes"
                 if backtracking_true:
                     coordinator_state.last_episode = backtracking_id
                 else:
@@ -3512,12 +3739,23 @@ class OpenAICotEngine(OpenAIEngineBase):
                     )
                 )
 
-        elif last_message_coordinator_state.coordinator_reasoning_stage == "analyze_next_episode":
+        elif last_message_coordinator_state.coordinator_reasoning_stage == "analyze_upcoming_episodes":
             try:
                 message_text = last_message.text
 
-                # Validate format and throw feedback exception if invalid.
-                validate_next_episode_analysis(message_text)
+                # Parse.
+                parsed_document = EpisodeAnalysisParser().parse_document(message_text)
+                rich.pretty.pprint(parsed_document)
+
+                _, remaining_episodes = get_completed_and_remaining_episodes(
+                    self.get_current_plan(), self.get_current_last_episode()
+                )
+                parsed_episode_ids = [episode.episode_id for episode in parsed_document.episodes]
+                if not parsed_episode_ids == remaining_episodes[:N_LOOKAHEAD]:
+                    raise ValueError(
+                        f"Analyzed episodes do not match the expected upcoming episodes: {parsed_episode_ids} vs. "
+                        f"{remaining_episodes[:N_LOOKAHEAD]}"
+                    )
 
                 # Update EngineState state.
                 coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
@@ -3528,6 +3766,7 @@ class OpenAICotEngine(OpenAIEngineBase):
 
             except ValueError as e:
                 exc_str = str(e)
+                print(f"{PROBLEM_WITH_OUTPUT_COORDINATOR}:\n{exc_str}")
                 self._append_message(
                     message=Message(
                         key=KeyGeneration.generate_message_key(),
