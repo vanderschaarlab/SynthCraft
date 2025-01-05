@@ -12,7 +12,7 @@ from .impl.tool_exploratory_data_analysis import ExploratoryDataAnalysis
 from .impl.tool_feature_importance import PermutationExplainer, ShapExplainer
 from .impl.tool_feature_selection import BorutaFeatureSelection
 from .impl.tool_hardware import HardwareInfo
-from .impl.tool_imputation import HyperImputeImputation
+from .impl.tool_imputation import HyperImputeImputation, HyperImputeImputationTrainTest
 from .impl.tool_paper import UploadAndSummarizeExamplePaper
 from .impl.tool_upload import UploadDataFile, UploadDataMultipleFiles
 from .tool_comms import ToolCommunicator, ToolOutput, ToolReturnIter
@@ -65,6 +65,7 @@ _AVAILABLE_TOOLS_LIST = [
     ExploratoryDataAnalysis(),
     HardwareInfo(),
     HyperImputeImputation(),
+    HyperImputeImputationTrainTest(),
     PermutationExplainer(),
     ShapExplainer(),
     UploadAndSummarizeExamplePaper(),
@@ -75,8 +76,6 @@ AVAILABLE_TOOLS = {tool.name: tool for tool in _AVAILABLE_TOOLS_LIST}
 
 __all__ = [
     "get_tool",
-    "HardwareInfo",
-    "HyperImputeImputation",
     "list_all_tool_specs",
     "ToolBase",
     "ToolCommunicator",

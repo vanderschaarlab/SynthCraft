@@ -407,14 +407,16 @@ confirm this), show it to the user using the `<WD>/image_name.extension` format 
         "episode_name": "Column background information",
         "episode_details": """
 Go through EACH columns with the and gather background information.
-    - IF you have some idea what the column represents, provide the user with a short summary of this. Ask the user if this is correct, and if not, ask them to provide the correct information.
+    - IF you have some idea what the column represents, provide the user with a short summary of this. Ask the user if \
+this is correct, and if not, ask them to provide the correct information.
     - IF you are not sure what the column represents, ask the user to provide this information about the column straight away.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
 - Do *NOT* ask about one column at a time, but rather go through several columns at once, so that the process is more efficient.
 - If there is a reasonable number of columns, roughly < 30, ensure that you have gone through all of them.
-- If there are many columns, focus on the most important ones, or the ones that are most likely to be relevant to the task. Once you have done this, ask the user if they would like to continue with the remaining columns.
+- If there are many columns, focus on the most important ones, or the ones that are most likely to be relevant to the \
+task. Once you have done this, ask the user if they would like to continue with the remaining columns.
 - *ALWAYS* go over the columns whose meaning is not clear to you - and ask the user for clarification.
 """,
         "tools": [],
@@ -427,12 +429,16 @@ Go through EACH columns with the and gather background information.
         "episode_details": """
 Any missing data must be first represented as `numpy.nan` values.
 
-1. Check the results from the EDA step to figure out if there are non-standard NaNs. If you have reason to suspect this is the case, list for the user, what specific values you suspect are used to represent missing data. Ask the user to confirm if these are indeed used to represent missing data.
-**Note:** if you suspect there are no non-standard NaNs, tell this to the user and confirm. If the user confirms, you can move on with the plan.
+1. Check the results from the EDA step to figure out if there are non-standard NaNs. If you have reason to suspect \
+this is the case, list for the user, what specific values you suspect are used to represent missing data. Ask the \
+user to confirm if these are indeed used to represent missing data.
+**Note:** if you suspect there are no non-standard NaNs, tell this to the user and confirm. If the user confirms, \
+you can move on with the plan.
 
-2. Generate code to replace the non-standard NaNs with `numpy.nan` values. Save this modified dataset with the suffix `_nan` in the filename.
+2. Generate code to replace the non-standard NaNs with `numpy.nan` values. Save this modified dataset with the \
+suffix `_nan` in the filename. IF there is a test set, you must apply the same transformation to it.
 """,
-        "coordinator_guidance": "It is recommended to issue this task together with DP-M_2 and DP-M_3.",
+        "coordinator_guidance": "This task should come before DP-M_2,3,4 tasks, as it affects them.",
         "worker_guidance": """
 **IMPORTANT**
 - Do NOT assume some "typical" non-standard NaN placeholders.
@@ -449,9 +455,12 @@ Otherwise you could end up replacing values that are not actually missing data!
         "episode_details": """
 If there is any missing data in the dataset:
     - Generate code to show per-column % missing values. Show these in descending order of % missing values.
-    - Suggest that as a rule of thumb any columns with 80%+ missing values should be removed. Ask the user what their acceptable threshold is for including a column in the analysis.
-    - Ask the user if they are happy to drop the columns that exceed this threshold? Do they want to keep some columns that exceed this threshold? If so, which ones?
-    - Given the user responses, generate code to drop the appropriate columns.
+    - Suggest that as a rule of thumb any columns with 80%+ missing values should be removed. Ask the user what their \
+acceptable threshold is for including a column in the analysis.
+    - Ask the user if they are happy to drop the columns that exceed this threshold? Do they want to keep some \
+columns that exceed this threshold? If so, which ones?
+    - Given the user responses, generate code to drop the appropriate columns. IF there is a test set, you *must* apply \
+the same transformation to it.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
@@ -474,9 +483,15 @@ Generate code to show:
     - per-column % missing values,
     - % of total rows that have missing values.
 If there are still missing values in the dataset:
-    - If the user's intended TARGET VARIABLE has missing values, we must make sure to handle this. Ask them if they are happy to drop rows with missing values in the target variable. Point out to the user that imputing the target variable is not recommended.
-    - Ask the user if they are happy to drop rows with missing data (in any column), or if they are happy to use an imputation tool (HyperImpute). Suggest that imputation is usually the better option, especially if most rows have missing values. If the percentage of rows with missing values is high, strongly suggest using imputation rather than dropping rows, due to the risk of losing valuable data.
-    - If they want to drop the rows, generate code to do so.
+    - If the user's intended TARGET VARIABLE has missing values, we must make sure to handle this. Ask them if \
+they are happy to drop rows with missing values in the target variable. Point out to the user that imputing the \
+target variable is not recommended.
+    - Ask the user if they are happy to drop rows with missing data (in any column), or if they are happy to use \
+an imputation tool (HyperImpute). Suggest that imputation is usually the better option, especially if most rows \
+have missing values. If the percentage of rows with missing values is high, strongly suggest using imputation \
+rather than dropping rows, due to the risk of losing valuable data.
+    - If they want to drop the rows, generate code to do so. IF there is a test set, you *must* apply the same \
+transformation to it.
     - If they want to use HyperImpute, complete your task, the next agent will handle this.
 """,
         "coordinator_guidance": None,
@@ -499,14 +514,15 @@ After imputation, generate code to show the per-column % missing values again, a
 """,
         "coordinator_guidance": """
 **IMPORTANT**:
-- This episode MUST be issued on its own AFTER the other episodes in this task!
-- If the dataset has ANY missing values at all, we MUST IMPUTE THEM before we can proceed to the predictive modelling stage. Hence, you MUST issue this episode IF there are missing values.
-
-The ONLY situation where you may skip this episode is when it is EXPLICITLY CLEAR from the conversation history that there are NONE - that is ZERO - missing values in the dataset. Carefully review the per column % missing values to confirm this. If UNSURE, issue this episode JUST IN CASE.
+- If the dataset has ANY missing values at all, we MUST IMPUTE THEM before we can proceed to the predictive modelling \
+stage. Hence, you MUST issue this episode IF there are missing values.
 """,
         "worker_guidance": """
-* Use the LATEST version of the dataset, after all the previous steps have been completed. Check the conversation history and the modification date-time of the files in the working directory to ensure this.
-* Save the imputed dataset with a suffix `_hyperimputed` in the filename.
+* Use the LATEST version of the dataset, after all the previous steps have been completed. Check the conversation \
+history and the modification date-time of the files in the working directory to ensure this.
+* Save the imputed dataset(s) with a suffix `_hyperimputed` in the filename.
+* IF there is a test set, you *must* provide BOTH the training and test dataset paths to the tool. It will fit on the \
+training data and transform the test data.
 """,
         "tools": ["hyperimpute_imputation"],
     },
