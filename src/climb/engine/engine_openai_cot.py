@@ -534,15 +534,25 @@ training data and transform the test data.
         "selection_condition": None,
         "episode_name": "Discuss data preprocessing with the user",
         "episode_details": """
-Discuss with the user whether they have any particular data preprocessing steps in mind. work with them to generate code to perform these steps. **IMPORTANT** Since your tools down the line support standard preprocessing like normalization, feature selection, etc., DO NOT suggest these here (unless the user explicitly asks to do these). This step is about whether the user has any specific data transformations in mind, that have medical meaning.
+Discuss with the user whether they have any particular data preprocessing steps in mind. work with them to generate \
+code to perform these steps. **IMPORTANT** Since your tools down the line support standard preprocessing like \
+normalization, feature selection, etc., DO NOT suggest these here (unless the user explicitly asks to do these). \
+This step is about whether the user has any specific data transformations in mind, that have medical meaning.
 """,
         "coordinator_guidance": """
-This is a LONG episode and it involves a lot of back-and-forth with the user. Issue this episode ON ITS OWN.
+This is a LONG episode and it involves a lot of back-and-forth with the user.
 The worker may have many things to do here, to satisfy the user needs.
 """,
         "worker_guidance": """
-- **IMPORTANT:** You MUST keep asking the user if they have any MORE preprocessing steps in mind. The user may want to do multiple things here! You must keep asking until the user says they are finished and do not have any more preprocessing steps in mind. Only then can you proceed to the next episode (if any).
+###### User interaction:
+- **IMPORTANT:** You MUST keep asking the user if they have any MORE preprocessing steps in mind. The user may \
+want to do multiple things here! You must keep asking until the user says they are finished and do not have any \
+more preprocessing steps in mind. Only then can you proceed to the next episode (if any).
+###### Data:
 - **IMPORTANT:** You must work from the latest version of the dataset, after missing data handling!
+- **IMPORTANT:** If the user has provided both a training and a test dataset, you must ensure that whatever \
+preprocessing steps you do on the training dataset, you must also do on the test dataset. Note that you must not \
+use the test dataset to inform the preprocessing steps on the training dataset - this is a critical best practice.
 """,
         "tools": ["EDA", "descriptive_statistics"],
     },
@@ -556,8 +566,10 @@ The worker may have many things to do here, to satisfy the user needs.
 - Ask the user if they want to use this tool to select the most important features in the dataset.
 - Only if the user says yes, summon the `feature_selection` tool, otherwise skip this step.
 - Use the `feature_selection` tool to find the most important features in the dataset.
-- Suggest to the user that they may want to further drop some or all features that are not in the list of important features,as it can help simplify the task and improve the performance of machine learning models.
-- List the features that are selected as important and the features that are not important. Ask the user if they would like to drop any of the unimportant features.
+- Suggest to the user that they may want to further drop some or all features that are not in the list of important \
+features,as it can help simplify the task and improve the performance of machine learning models.
+- List the features that are selected as important and the features that are not important. Ask the user if they \
+would like to drop any of the unimportant features.
 - If so, generate code to do this.
 - Save this modified dataset with a suffix `_selected_features` in the filename.
 """,
@@ -567,6 +579,10 @@ The worker may have many things to do here, to satisfy the user needs.
 If the task is survival analysis, the you must do the following BEFORE running the feature selection tool:
 1. Confirm what is the TIME variable (the variable that has the time index representing event time)
 2. Confirm what is the EVENT variable (the variable that represents the event itself, usually binary)
+Do NOT remove these columns in the feature selection step!
+
+If the user has provided both a training and a test dataset, you must run the tool on the training dataset only. Then, \
+if the user wants to drop any columns, you must apply the same transformation to BOTH datasets.
 """,
         "tools": ["feature_selection"],
     },
@@ -576,7 +592,10 @@ If the task is survival analysis, the you must do the following BEFORE running t
         "selection_condition": None,
         "episode_name": "Confirm ML problem type",
         "episode_details": """
-Confirm with the user to what the target variable is and whether it is a classification, regression, or survival analysis task - provide your best suggestion based on the message history and check with the user if this is correct. **IMPORTANT**: You must **explicitly** ask the user for confirmation on this, as this is a critical decision.
+Confirm with the user to what the target variable is and whether it is a classification, regression, or survival \
+analysis task - provide your best suggestion based on the message history and check with the user if this is correct.
+
+**IMPORTANT**: You must **explicitly** ask the user for confirmation on this, as this is a critical decision.
 """,
         "coordinator_guidance": "Issue this task on its own first",
         "worker_guidance": """
@@ -590,14 +609,19 @@ Once you have the information, mark this task as completed! Do not proceed to ru
         "selection_condition": "Only if the ML problem is SURVIVAL ANALYSIS",
         "episode_name": "Check time and event columns",
         "episode_details": """
-ONLY IF the task is SURVIVAL ANALYSIS, you need to make sure both the *time* and *event* (target) columns are present in the data. Check what format the time is in. The tool expects the time to be a number (integer or float) representing a duration until the event. If the time is in a date-like format, you need to convert it to a number representing the duration. Generate code to do this.
+ONLY IF the task is SURVIVAL ANALYSIS, you need to make sure both the *time* and *event* (target) columns are present \
+in the data. Check what format the time is in. The tool expects the time to be a number (integer or float) \
+representing a duration until the event. If the time is in a date-like format, you need to convert it to a number \
+representing the duration. Generate code to do this.
 """,
         "coordinator_guidance": """
 ONLY issue this task if the user has confirmed the problem setting is SURVIVAL ANALYSIS.
 IF the problem is CLASSIFICATION or REGRESSION, you MUST SKIP this task. Do NOT issue it to the worker agent in that case.
 """,
         "worker_guidance": """
-Use your best understanding of the data from EDA to determine what should be considered the starting point for the time and what units to use. This is a tricky step, think carefully and step by step. The user will appreciate your help here!
+Use your best understanding of the data from EDA to determine what should be considered the starting point for the \
+time and what units to use. This is a tricky step, think carefully and step by step. The user will appreciate your \
+help here!
 """,
         "tools": [],
     },
@@ -607,11 +631,18 @@ Use your best understanding of the data from EDA to determine what should be con
         "selection_condition": None,
         "episode_name": "Check for data leakage",
         "episode_details": """
-We need to check for data leakage at this point. This is a critical step to ensure the integrity of the machine learning study. Data leakage is when information that would not be available at the time of prediction is used in the model. This can lead to overly optimistic results and a model that cannot be used in practice.
+We need to check for data leakage at this point. This is a critical step to ensure the integrity of the machine \
+learning study. Data leakage is when information that would not be available at the time of prediction is used in \
+the model. This can lead to overly optimistic results and a model that cannot be used in practice.
 
 Follow the below substeps EXACTLY.
-- (1) Explicitly list ALL THE COLUMNS (the current columns, after all the preprocessing steps we have done) except the target (and also except the event in case of SURVIVAL ANALYSIS). Do this by generating code. REMEMBER to use the LATEST version of the dataset!
-- (2) Consult the message history, to check the meaning and details of each of these columns. Write a bullet point list of columns that you suspect are likely to represent a data leak, with a reason for each. Be careful with columns that represent information from different time points, especially in the survival analysis setting, as they may reveal the target. Remember, information not available at the time of prediction is likely data leakage.
+- (1) Explicitly list ALL THE COLUMNS (the current columns, after all the preprocessing steps we have done) except \
+the target (and also except the event in case of SURVIVAL ANALYSIS). Do this by generating code. REMEMBER to use the \
+LATEST version of the dataset!
+- (2) Consult the message history, to check the meaning and details of each of these columns. Write a bullet point \
+list of columns that you suspect are likely to represent a data leak, with a reason for each. Be careful with columns \
+that represent information from different time points, especially in the survival analysis setting, as they may reveal \
+the target. Remember, information not available at the time of prediction is likely data leakage.
 Explain to the user why data leakage is a problem and suggest removing them. Example:
     - `cause_of_death`: This column is likely to reveal the target variable `death`.
     - `column_name`: Reason for suspecting a data leak.
@@ -626,9 +657,11 @@ NOTE: Since you might not have picked up all the data leakage columns, always as
 - This is an important step that prevents data leakage. If not performed correctly, the user's ML study could be meaningless!
 - Perform all substeps STEP BY STEP - DO NOT DEVIATE FROM THESE STEPS!
 - Pause and discuss with the user at each step, don't do it all together - that's confusing. DO NOT RUSH!
-- **IMPORTANT** If writing code to drop any columns, make sure to start from the LATEST version of the dataset (after missing data handling and any other preprocessing steps).
+- **IMPORTANT** If writing code to drop any columns, make sure to start from the LATEST version of the dataset \
+(after missing data handling and any other preprocessing steps).
 
-DO NOT do this episode together with the \"Check for irrelevant columns\" task. Complete this episode first! It will be very confusing for the user otherwise.
+FINALLY:
+If the user has provided both a training and a test dataset, you must ensure that the same columns are dropped from both datasets.
 """,
         "tools": [],
     },
@@ -638,10 +671,18 @@ DO NOT do this episode together with the \"Check for irrelevant columns\" task. 
         "selection_condition": None,
         "episode_name": "Check for irrelevant columns",
         "episode_details": """
-We need to check for irrelevant columns at this point. Inclusion of irrelevant columns can lead to overfitting and misleading feature importance. Hence it is important to remove them before continuing with the machine learning study.
+We need to check for irrelevant columns at this point. Inclusion of irrelevant columns can lead to overfitting and \
+misleading feature importance. Hence it is important to remove them before continuing with the machine learning study.
+
+**IMPORTANT**:
+What are irrelevant columns? Here, we mean ONLY: ID columns, or any "data artifacts" that are not useful for the analysis.
+Do NOT consider columns that "may be irrelevant" based on your understanding of the data. This is a very specific check.
 
 Follow the below substeps EXACTLY.
-- (1) Now you need to check if there are any meaningless/irrelevant columns still left in the dataset. This usually means various ID columns or similar. Consult the message history to check the meaning and details of each of the columns to help you. Write a bullet point list of columns that you suspect are irrelevant, with a reason for each. Explain to the user why irrelevant columns are a problem and suggest removing them. Example:
+- (1) Now you need to check if there are any meaningless/irrelevant columns still left in the dataset. \
+Consult the message history to check the meaning and details of each of the columns to help you. Write a bullet point \
+list of columns that you suspect are irrelevant, with a reason for each. Explain to the user why irrelevant columns \
+are a problem and suggest removing them. Example:
     - `patient_id`: This column is an identifier and does not contain any useful information for the analysis.
     - `column_name`: Reason for suspecting an irrelevant column.
     ...
@@ -649,7 +690,9 @@ NOTE: If there are no such columns, explicitly state that you do not suspect any
 NOTE: Since you might not have picked up all the irrelevant columns, always ask the user to double-check whether they think there are any others.
 - (2) If the user wants to exclude any of the columns discussed, GENERATE THE CODE to do so STRAIGHT AWAY. This cannot be done later!
 
-(3) Finally, list the feature columns that are left, and check that the user is happy to use all of these features in the machine learning study. This is to make it clear to the user what features we are going to use and serves as a final check.
+(3) Finally, list the feature columns that are left, and check that the user is happy to use all of these features \
+in the machine learning study. This is to make it clear to the user what features we are going to use and serves as \
+a final check.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
@@ -657,7 +700,11 @@ NOTE: Since you might not have picked up all the irrelevant columns, always ask 
 - This is an important step that prevents irrelevant columns from being used in the ML study.
 - Perform all substeps STEP BY STEP - DO NOT DEVIATE FROM THESE STEPS!
 - Pause and discuss with the user at each step, don't do it all together - that's confusing. DO NOT RUSH!
-- **IMPORTANT** If writing code to drop any columns, make sure to start from the LATEST version of the dataset (after missing data handling and any other preprocessing steps, and after the data leakage check column removals).
+- **IMPORTANT** If writing code to drop any columns, make sure to start from the LATEST version of the dataset \
+(after missing data handling and any other preprocessing steps, and after the data leakage check column removals).
+
+FINALLY:
+If the user has provided both a training and a test dataset, you must ensure that the same columns are dropped from both datasets.
 """,
         "tools": [],
     },
@@ -674,7 +721,8 @@ After the study is done, ask the user if they want to also try using linear mode
         "worker_guidance": """
 NOTE: You must invoke the tool rather than writing your own code for this step.
 
-If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
+If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why \
+this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
 """,
         "tools": ["autoprognosis_classification"],
     },
