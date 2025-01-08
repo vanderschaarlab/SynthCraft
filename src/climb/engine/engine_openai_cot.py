@@ -283,7 +283,11 @@ user if you can help them with anything else.
 DO NOT actually execute the AutoPrognosis tools here! Use their specifications for your information, but DO NOT \
 invoke them!
 """,
-        "tools": ["autoprognosis_classification", "autoprognosis_regression", "autoprognosis_survival"],
+        "tools": [
+            "autoprognosis_classification_train_test",
+            "autoprognosis_regression_train_test",
+            "autoprognosis_survival_train_test",
+        ],
     },
     {
         "episode_id": "EDA_1",
@@ -714,7 +718,7 @@ If the user has provided both a training and a test dataset, you must ensure tha
         "selection_condition": "Only if the ML problem is CLASSIFICATION",
         "episode_name": "Machine learning study - classification",
         "episode_details": """
-Perform a machine learning study using the `autoprognosis_classification` tool. Set the `mode` parameter to "all".
+Perform a machine learning study using the `autoprognosis_classification_train_test` tool. Set the `mode` parameter to "all".
 After the study is done, ask the user if they want to also try using linear models only. If so, then set the `mode` parameter to "linear" and run the tool again.
 """,
         "coordinator_guidance": None,
@@ -724,7 +728,7 @@ NOTE: You must invoke the tool rather than writing your own code for this step.
 If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why \
 this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
 """,
-        "tools": ["autoprognosis_classification"],
+        "tools": ["autoprognosis_classification_train_test"],
     },
     {
         "episode_id": "ML_1-REGRESSION",
@@ -732,16 +736,17 @@ this may be the case, and what needs to be done to improve model performance. Pr
         "selection_condition": "Only if the ML problem is REGRESSION",
         "episode_name": "Machine learning study - regression",
         "episode_details": """
-Perform a machine learning study using the `autoprognosis_regression` tool. Set the `mode` parameter to "all".
+Perform a machine learning study using the `autoprognosis_regression_train_test` tool. Set the `mode` parameter to "all".
 After the study is done, ask the user if they want to also try using linear models only. If so, then set the `mode` parameter to "linear" and run the tool again.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
 NOTE: You must invoke the tool rather than writing your own code for this step.
 
-If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
+If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why \
+this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
 """,
-        "tools": ["autoprognosis_regression"],
+        "tools": ["autoprognosis_regression_train_test"],
     },
     {
         "episode_id": "ML_1-SURVIVAL",
@@ -751,14 +756,15 @@ If you receive an error that a minimum performance threshold was not met, sugges
         "episode_details": """
 NOTE: You must invoke the tool rather than writing your own code for this step.
 
-Perform a machine learning study using the `autoprognosis_survival` tool. Set the `mode` parameter to "all".
+Perform a machine learning study using the `autoprognosis_survival_train_test` tool. Set the `mode` parameter to "all".
 After the study is done, ask the user if they want to also try using linear models only. If so, then set the `mode` parameter to "linear" and run the tool again.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
-If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
+If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why \
+this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
 """,
-        "tools": ["autoprognosis_survival"],
+        "tools": ["autoprognosis_survival_train_test"],
     },
     {
         "episode_id": "MLE_1",
@@ -766,7 +772,11 @@ If you receive an error that a minimum performance threshold was not met, sugges
         "selection_condition": None,
         "episode_name": "Feature importance plots",
         "episode_details": """
-Ask if the user wants to see feature importance plots. If so, then generate these with the `shap_explainer` tool for regression or classification tasks, and use the `permutation_explainer` tool for survival analysis tasks. It is CRITICAL to ALWAYS select `permutation_explainer` for survival tasks.
+Ask if the user wants to see feature importance plots. If so, then generate these with the `shap_explainer` tool \
+for regression or classification tasks, and use the `permutation_explainer` tool for survival analysis tasks. It \
+is CRITICAL to ALWAYS select `permutation_explainer` for survival tasks.
+
+If the user has provided both a training and a test dataset, use the training dataset here.
 """,
         "coordinator_guidance": None,
         "worker_guidance": None,
@@ -778,7 +788,10 @@ Ask if the user wants to see feature importance plots. If so, then generate thes
         "selection_condition": "The ML task is CLASSIFICATION",
         "episode_name": "Insights on classification",
         "episode_details": """
-If the task is a CLASSIFICATION task, ask if the user wants to see insights about which samples were hard/easy/ambiguous to classify, if so then generate these with the `dataiq_insights` tool.
+If the task is a CLASSIFICATION task, ask if the user wants to see insights about which samples were \
+hard/easy/ambiguous to classify, if so then generate these with the `dataiq_insights` tool.
+
+If the user has provided both a training and a test dataset, use the training dataset here.
 """,
         "coordinator_guidance": None,
         "worker_guidance": None,
@@ -798,7 +811,10 @@ If they do, do the following substeps in ORDER.
 (1) First you will need to get the subgroup definitions from the user,
 (2) Then generate code to filter the dataset by the subgroups and SAVE SEPARATE FILES files.
 (3) You will need to provide those file names to the `autoprognosis_subgroup_evaluation` as `data_file_paths` argument.
-(4) So, finally invoke the `autoprognosis_subgroup_evaluation` tool with the appropriate arguments. NOTE: invoke the tool, do NOT write a message to the user (or write any code) in this last step!
+(4) So, finally invoke the `autoprognosis_subgroup_evaluation` tool with the appropriate arguments. \
+NOTE: invoke the tool, do NOT write a message to the user (or write any code) in this last step!
+
+If the user has provided both a training and a test dataset, use the training dataset here.
 
 You may later want to discuss trying the feature importance plots for each subgroup.
 """,
@@ -820,10 +836,10 @@ Use your best judgement to suggest how modelling performance can be improved, an
         "coordinator_guidance": None,
         "worker_guidance": "If the user is happy with the results, mark this task as completed.",
         "tools": [
-            "autoprognosis_classification",
-            "autoprognosis_regression",
+            "autoprognosis_classification_train_test",
+            "autoprognosis_regression_train_test",
             "autoprognosis_subgroup_evaluation",
-            "autoprognosis_survival",
+            "autoprognosis_survival_train_test",
             "shap_explainer",
             "permutation_explainer",
         ],
@@ -835,7 +851,8 @@ Use your best judgement to suggest how modelling performance can be improved, an
         "episode_name": "Discuss the project and finish up",
         "episode_details": """
 - State that it looks like the project is drawing to a close.
-- Summarize to the user what has been done in the project. Be systematic and clear. List the steps that have been taken, and the results that have been obtained.
+- Summarize to the user what has been done in the project. Be systematic and clear. List the steps that have been \
+taken, and the results that have been obtained.
 - Ask the user if there is anything else they would like to do, or if they are happy with the results.
 - If the user wants do do extra steps, work with them to achieve this.
 - If they want to REDO particular project stages, explicitly state:

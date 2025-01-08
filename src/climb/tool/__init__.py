@@ -2,9 +2,12 @@ from typing import Any, Dict, List, Optional
 
 from .impl.tool_autoprognosis import (
     AutoprognosisClassification,
+    AutoprognosisClassificationTrainTest,
     AutoprognosisRegression,
+    AutoprognosisRegressionTrainTest,
     AutoprognosisSubgroupEvaluation,
     AutoprognosisSurvival,
+    AutoprognosisSurvivalTrainTest,
 )
 from .impl.tool_data_centric import DataIQInsights  # ConfidentLearningInsights
 from .impl.tool_descriptive_stats import DescriptiveStatistics
@@ -58,6 +61,9 @@ _AVAILABLE_TOOLS_LIST = [
     AutoprognosisRegression(),
     AutoprognosisSubgroupEvaluation(),
     AutoprognosisSurvival(),
+    AutoprognosisClassificationTrainTest(),
+    AutoprognosisRegressionTrainTest(),
+    AutoprognosisSurvivalTrainTest(),
     BorutaFeatureSelection(),
     # ConfidentLearningInsights(),
     DataIQInsights(),
