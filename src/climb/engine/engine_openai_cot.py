@@ -1261,6 +1261,9 @@ For your information, do not send this to the user
 # REMEMBER
 - If in Step 3. "Analyze next episode" you have concluded that the next episode is not appropriate, you MUST update \
 the PLAN in Step 4 "Check plan".
+- When writing out the updated plan, you must keep the "past" episodes in the plan, and only update the future episodes. \
+For example, if the plan was ["A", "B", "C", "D"], and you are replanning after "B", and you decide to replace "C" with "E", \
+the new plan should be ["A", "B", "E", "D"].
 ====================
 """
 
@@ -3456,7 +3459,10 @@ class OpenAICotEngine(OpenAIEngineBase):
                     # print(last_episode)
                     if last_episode == "None":
                         return plan[0]
-                    last_episode_idx = plan.index(last_episode)
+                    try:
+                        last_episode_idx = plan.index(last_episode)
+                    except ValueError as e:
+                        raise ValueError(f"Last episode '{last_episode}' not found in the plan. Have you written out the ENTIRE PLAN, including past episodes?")
                     if last_episode_idx + 1 < len(plan):
                         return plan[last_episode_idx + 1]
                     else:
@@ -3529,7 +3535,7 @@ class OpenAICotEngine(OpenAIEngineBase):
                         role="system",
                         visibility="llm_only",
                         agent="coordinator",
-                        text=f"{PROBLEM_WITH_SUBTASK_SELECTION_MARKER}:\n{exc_str}",
+                        text=f"{PROBLEM_WITH_OUTPUT_COORDINATOR}:\n{exc_str}",
                     )
                 )
 
