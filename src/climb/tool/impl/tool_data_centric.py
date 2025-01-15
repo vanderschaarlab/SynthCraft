@@ -5,6 +5,7 @@ from typing import Any, Dict
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import xgboost as xgb
 from autoprognosis.utils.serialization import load_model_from_file
 from data_iq import DataIQ_SKLearn
 
@@ -12,20 +13,11 @@ from ..tool_comms import ToolCommunicator, ToolReturnIter, execute_tool
 from ..tools import ToolBase
 
 
-class APWrapperForDataIQ:
-    def __init__(self, model: Any) -> None:
-        self.model = model
-
-    def predict_proba(self, X: pd.DataFrame, **kwargs: Any) -> Any:  # pylint: disable=unused-argument
-        # Swallow any unknown kwargs.
-        return self.model.predict_proba(X).to_numpy()  # Also return as numpy array, not DF.
-
-
 def dataiq_insights(
     tc: ToolCommunicator,
     data_file_path: str,
     target_variable: str,
-    model_path: str,
+    model_path: str,  # TODO: remove.
     workspace: str,
 ) -> None:
     df = pd.read_csv(data_file_path)
@@ -34,17 +26,18 @@ def dataiq_insights(
 
     tc.print("Loading the model...")
     try:
-        model = load_model_from_file(model_path)
+        model = load_model_from_file(model_path)  # noqa: F841
     except Exception as e:
         raise TypeError(
             "Model file is not a valid AutoPrognosis 2.0 file. This tool only supports AutoPrognosis 2.0 models."
         ) from e
-    # TODO: Support sklearn models.
-    clf = APWrapperForDataIQ(model)
+
+    nest = 100
+    clf = xgb.XGBClassifier(n_estimators=nest)
+    clf.fit(X, y)
 
     tc.print("Running DataIQ...")
     dataiq = DataIQ_SKLearn(X=X, y=y)
-    nest = 10
     for i in range(1, nest):
         dataiq.on_epoch_end(clf=clf, iteration=i)
     aleatoric_uncertainty = dataiq.aleatoric
@@ -121,8 +114,15 @@ def dataiq_insights(
 
     hover_show = features + ["Row Index", target_variable]
 
+    # Downsample df if more than 1000 samples for plotting.
+    if len(df) > 1000:
+        df_fig = df.sample(n=1000, random_state=42)
+        print("Downsampled to 1000 samples for plotting to avoid UI issues.")
+    else:
+        df_fig = df
+
     fig = px.scatter(
-        df,
+        df_fig,
         x="aleatoric_uncertainty",
         y="confidence",
         color="data_iq_group",

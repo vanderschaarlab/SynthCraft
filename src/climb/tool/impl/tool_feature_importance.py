@@ -114,11 +114,16 @@ def shap_explainer(
     shap_compatible_model = ShapCompatibleWrapper(model)
     X_for_shap = shap_compatible_model.register_categorical(X)
 
+    if X_for_shap.shape[0] > 1000:
+        print("Reducing the number of samples to 1000 for SHAP explainer due to performance reasons.")
+        X_for_shap = X_for_shap.sample(1000, random_state=42)
+
     DEFAULT_MAX_EVALS = 500
     n_features = X_for_shap.shape[1]
     max_evals = max(DEFAULT_MAX_EVALS, 2 * n_features + 1)  # Exception raised by shap if max_evals < n_features + 1
     explainer = shap.Explainer(shap_compatible_model.predict, X_for_shap)
 
+    print("Setting up the explainer...")
     shap_values = explainer(X_for_shap, max_evals=max_evals)
 
     # Get numerical values for the mean absolute SHAP values per feature.

@@ -12,8 +12,8 @@ from climb.db.tinydb_db import DB
 from climb.engine import ENGINE_MAP
 
 PAGE_TITLES = {
-    "main_emoji": "⚕️ CliMB",
-    "main_plain": "CliMB",
+    "main_emoji": "⚕️ CliMB-DC",
+    "main_plain": "CliMB-DC",
     "research_management_emoji": "🗨️ Research Management",
     "research_management_plain": "Research Management",
     "settings_emoji": "⚙️ Settings",
@@ -127,6 +127,7 @@ def menu() -> None:
         st.markdown(
             f"""
             :blue-background[**Cli**]nical :blue-background[**M**]achine Learning :blue-background[**B**]uilder
+            :blue-background[**D**]ata-:blue-background[**C**]entric
 
             Version: `{VERSION}`
             """

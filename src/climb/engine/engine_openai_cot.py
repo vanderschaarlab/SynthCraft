@@ -793,9 +793,45 @@ hard/easy/ambiguous to classify, if so then generate these with the `dataiq_insi
 
 If the user has provided both a training and a test dataset, use the training dataset here.
 """,
-        "coordinator_guidance": None,
+        "coordinator_guidance": """
+**IMPORTANT!*** If the result of the data IQ insights suggests that there are quite a few AMBIGUOUS and HARD samples, \
+you should ADD MLE_2X-CLASSIFICATION to the plan. This is because the user may want to consider removing these samples \
+and retraining the model.
+""",
         "worker_guidance": None,
         "tools": ["dataiq_insights"],
+    },
+    {
+        "episode_id": "MLE_2X-CLASSIFICATION",
+        "status_reason": None,
+        "selection_condition": "The ML task is CLASSIFICATION; Data IQ insights reveal many AMBIGUOUS/HARD samples",
+        "episode_name": "Act on ambiguous/hard samples",
+        "episode_details": """
+FOLLOW ALL OF THESE STEPS IN ORDER:
+*Proceed to the next step once the previous step worked successfully.*
+1. Ask the user whether they want to remove some % of ambiguous and hard samples from the dataset.
+IF NO:
+* Complete the task here.
+IF YES:
+2. Confirm what % of ambiguous and hard samples the user wants to remove.
+3. **Generate code** to remove this % of ambiguous and hard samples from the dataset. Save the modified dataset with the \
+suffix `_filtered` in the filename. *NOTE* This must be done on the TRAINING dataset only!
+    - Generate code, do not use tools here.
+    - You can load the indices from the working directory - see Data IQ's output.
+    - Note: pickle is a python built-in library so there is no need to install it.
+4. Re-run the machine learning study with the `autoprognosis_classification_train_test` tool using the filtered dataset.
+5. Compare the performance of the model before and after removing the ambiguous and hard samples and confirm with the \
+user which model they prefer.
+
+6. FINALLY: Check with the user if they want to try filtering a different % of ambiguous and hard samples. If so, repeat \
+the process from step 2. Iterate with the user until they are happy with the results.
+""",
+        "coordinator_guidance": """
+Select this episode if the data IQ insights suggest that there are many AMBIGUOUS and HARD samples.
+This is because the user may want to consider removing these samples and retraining the model.
+""",
+        "worker_guidance": None,
+        "tools": ["autoprognosis_classification_train_test"],
     },
     {
         "episode_id": "MLE_3",
@@ -919,6 +955,7 @@ PLAN = [
     "ML_1-CLASSIFICATION",
     "MLE_1",
     "MLE_2-CLASSIFICATION",
+    "MLE_2X-CLASSIFICATION",
     "MLE_3",
     "MLI_1",
     "END_1",
@@ -3461,8 +3498,11 @@ class OpenAICotEngine(OpenAIEngineBase):
                         return plan[0]
                     try:
                         last_episode_idx = plan.index(last_episode)
-                    except ValueError as e:
-                        raise ValueError(f"Last episode '{last_episode}' not found in the plan. Have you written out the ENTIRE PLAN, including past episodes?")
+                    except ValueError:
+                        raise ValueError(
+                            f"Last episode '{last_episode}' not found in the plan. Have you written out the "
+                            "ENTIRE PLAN, including past episodes?"
+                        )
                     if last_episode_idx + 1 < len(plan):
                         return plan[last_episode_idx + 1]
                     else:
