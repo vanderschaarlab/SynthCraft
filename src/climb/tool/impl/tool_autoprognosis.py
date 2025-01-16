@@ -915,6 +915,7 @@ class AutoprognosisSubgroupEvaluation(ToolBase):
 
 # === TRAIN-TEST SPLIT VERSIONS ===
 # TODO: Consolidate with the above eventually.
+# TODO: Clean up the evaluation stage.
 
 
 def autoprognosis_classification_train_test(
@@ -1022,6 +1023,8 @@ def autoprognosis_classification_train_test(
             n_folds=n_folds,
             pretrained=True,
         )
+        for k, v in ev_test["str"].items():
+            ev_test["str"][k] = v.split(" ")[0]
         ev_readable_test = json.dumps(ev_test["str"], indent=2)
 
     # Make predictions.
@@ -1297,6 +1300,8 @@ def autoprognosis_regression_train_test(
             n_folds=n_folds,
             pretrained=True,
         )
+        for k, v in ev_test["str"].items():
+            ev_test["str"][k] = v.split(" ")[0]
         ev_readable_test = json.dumps(ev_test["str"], indent=2)
 
     # tc.print(f"Evaluation results:\n\n{ev_readable}")
@@ -1559,6 +1564,8 @@ proportion of `predicted_risk_sore > 0.5`
             n_folds=n_folds,
             pretrained=True,
         )
+        for k, v in ev_test["str"].items():
+            ev_test["str"][k] = v.split(" ")[0]
         ev_readable_test = json.dumps(ev_test["str"], indent=2)
 
     # tc.print(f"Evaluation results:\n\n{ev_readable}")
