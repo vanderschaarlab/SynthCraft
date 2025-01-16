@@ -3375,16 +3375,38 @@ class OpenAICotEngine(OpenAIEngineBase):
             raise ValueError("Last message EngineState must have reasoning stage.")
 
         if PROJECT_END_MARKER in last_message.text:
-            last_message_coordinator_state.whole_project_completed = True
+            try:
+                _, remaining_episodes = get_completed_and_remaining_episodes(
+                    self.get_current_plan(), self.get_current_last_episode()
+                )
+                if len(remaining_episodes) != 0:
+                    raise ValueError(
+                        f"Project end marker found, but there are remaining episodes: {remaining_episodes}."
+                        "You may not complete the project before the end of the plan."
+                    )
 
-            coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
-            # coordinator_state.coordinator_reasoning_stage = "done"
-            coordinator_state.whole_project_completed = True
-            self.session.engine_state.agent_state["coordinator"] = m2d(coordinator_state)
+                last_message_coordinator_state.whole_project_completed = True
 
-            self.update_state()
+                coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
+                # coordinator_state.coordinator_reasoning_stage = "done"
+                coordinator_state.whole_project_completed = True
+                self.session.engine_state.agent_state["coordinator"] = m2d(coordinator_state)
 
-            return self.session.engine_state
+                self.update_state()
+
+                return self.session.engine_state
+
+            except ValueError as e:
+                exc_str = str(e)
+                self._append_message(
+                    message=Message(
+                        key=KeyGeneration.generate_message_key(),
+                        role="system",
+                        visibility="llm_only",
+                        agent="coordinator",
+                        text=f"{PROBLEM_WITH_OUTPUT_COORDINATOR}:\n{exc_str}",
+                    )
+                )
 
         if last_message_coordinator_state.coordinator_reasoning_stage == "write_observations":
             # We aren't doing any special parsing in this step.

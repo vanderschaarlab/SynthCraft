@@ -21,6 +21,10 @@ def dataiq_insights(
     workspace: str,
 ) -> None:
     df = pd.read_csv(data_file_path)
+
+    # Convert "object" columns to categorical columns.
+    df = clean_dataframe(df)
+
     X = df[[c for c in df.columns if c != target_variable]]
     y = df[target_variable].to_numpy()
 
