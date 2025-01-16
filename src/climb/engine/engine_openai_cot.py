@@ -2610,6 +2610,11 @@ def parse_plan_update(input_text, plan_update_marker, no_plan_update_marker):
     if plan_update_present:
         content = ""
         capture = False
+        format_note = (
+            "\nThe format of plan update must be **a list of EPISODE ID strings**, e.g.:\n"
+            '["EP_1", "EP_8", "EP_X9"].\n'
+            "Do not include the episode names or details, it is just a list of episode IDs."
+        )
 
         for line in lines:
             if plan_update_marker in line:
@@ -2629,12 +2634,12 @@ def parse_plan_update(input_text, plan_update_marker, no_plan_update_marker):
             try:
                 updated_plan = eval(match.group())  # Unsafe for untrusted input; consider json.loads
                 if not isinstance(updated_plan, list) or not all(isinstance(item, str) for item in updated_plan):
-                    raise ValueError("Updated plan is not a list of strings.")
+                    raise ValueError("Updated plan is not a list of strings." + format_note)
                 return True, updated_plan
             except Exception as e:
-                raise ValueError(f"Failed to parse updated plan: {e}")
+                raise ValueError(f"Failed to parse updated plan: {e}." + format_note)
 
-        raise ValueError("Plan update marker found but no valid list of strings in brackets.")
+        raise ValueError("Plan update marker found but no valid list of strings in brackets." + format_note)
 
     elif no_plan_update_present:
         return False, None
@@ -3523,7 +3528,10 @@ class OpenAICotEngine(OpenAIEngineBase):
                     except ValueError:
                         raise ValueError(
                             f"Last episode '{last_episode}' not found in the plan. Have you written out the "
-                            "ENTIRE PLAN, including past episodes?"
+                            "ENTIRE PLAN, including past episodes?\nFor example, if the original plan was ['START_1', "
+                            "'START_2', 'MIDDLE_1', 'MIDDLE_3', 'FINAL_1'], and we have finished 'START_2', and you "
+                            "want to change the 'MIDDLE_3' to 'MIDDLE_X', you must write out the entire new plan, including "
+                            "the past episodes, like so: ['START_1', 'START_2', 'MIDDLE_1', 'MIDDLE_X', 'FINAL_1']."
                         )
                     if last_episode_idx + 1 < len(plan):
                         return plan[last_episode_idx + 1]
