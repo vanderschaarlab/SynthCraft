@@ -950,9 +950,9 @@ def autoprognosis_classification_train_test(
             # "tabnet",
             # "knn",
         ]
-        num_iter = 3  # 20
+        num_iter = 20
     num_study_iter = 1
-    num_ensemble_iter = 1  # 3
+    num_ensemble_iter = 3
     timeout = 5  # 60
     # --- --- ---
 
@@ -1464,9 +1464,9 @@ def autoprognosis_survival_train_test(
             # "survival_xgboost",
             # ...,
         ]
-        num_iter = 3  # 20
+        num_iter = 20
     num_study_iter = 1
-    num_ensemble_iter = 1  # 3
+    num_ensemble_iter = 3
     timeout = 5  # 60
     # --- --- ---
 

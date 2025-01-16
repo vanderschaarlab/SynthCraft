@@ -953,6 +953,8 @@ PLAN = [
     "MLC_3",
     "MLC_4",
     "ML_1-CLASSIFICATION",
+    "ML_1-REGRESSION",
+    "ML_1-SURVIVAL",
     "MLE_1",
     "MLE_2-CLASSIFICATION",
     "MLE_2X-CLASSIFICATION",
