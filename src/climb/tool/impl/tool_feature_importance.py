@@ -124,7 +124,14 @@ def shap_explainer(
     explainer = shap.Explainer(shap_compatible_model.predict, X_for_shap)
 
     print("Setting up the explainer...")
-    shap_values = explainer(X_for_shap, max_evals=max_evals)
+    try:
+        shap_values = explainer(X_for_shap, max_evals=max_evals)
+    except ValueError as e:
+        if "max_evals" in str(e):
+            # Try again with the default max_evals.
+            shap_values = explainer(X_for_shap)
+        else:
+            raise
 
     # Get numerical values for the mean absolute SHAP values per feature.
     mean_abs_shap_values = np.abs(shap_values.values).mean(axis=0)  # pylint: disable=no-member
