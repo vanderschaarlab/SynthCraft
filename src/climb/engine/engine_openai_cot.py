@@ -175,8 +175,9 @@ EPISODE_DB = [
 dataset are. Tell the user that they have to upload their training dataset, and they can also upload a test dataset if \
 they have it.
 - Wait for user response.
-- If the user has files ready, proceed to summoning the tool. Otherwise, STOP the task.
-- Then summon the `upload_data_multiple_files` tool so that the user can upload their data file(s).
+- If the user has files ready, proceed to summoning the tool. You MUST SUMMON the `upload_data_multiple_files` tool so that the user can upload their data file(s).\
+DO NOT wait for the user to ask for this.
+- Otherwise, STOP the task.
 - Finally, confirm with the user which file is the training dataset and which is the test dataset (if applicable). If \
 it is clear from the filenames, suggest this to the user and ask for confirmation.
 """,
@@ -303,7 +304,8 @@ achieve the same columns in both datasets. IF this is not possible STOP the task
 
 2. Ask the user if they would like to exclude certain columns from the analysis, or conversely, only keep certain columns. \
 If so, find out which columns these are. Then generate code to drop the columns that the user wants to exclude or to \
-only keep the columns that the user wants to keep. Save the modified dataset(s) with the suffix `_user_cols` in the \
+only keep the columns that the user wants to keep. If the user provides no preference, do NOT make any changes at this step. \
+Save the modified dataset(s) with the suffix `_user_cols` in the \
 filename.
 """,
         "coordinator_guidance": None,
@@ -367,7 +369,7 @@ best understanding of medical research and data science.
         "episode_name": "Warn about small sample size if necessary",
         "episode_details": """
 ONLY IF there are fewer than about 50 samples, warn the user that the results may not be reliable as there is not \
-enough data. Allow to continue if the user is happy with that. Skip this step completely if there are more than \
+enough data. Allow to continue if the user is happy with that. SKIP this step DIRECTLY and COMPLETELY if there are more than \
 50 samples.
 
 Note: this refers to the number of samples in the training dataset.
@@ -384,17 +386,18 @@ Note: this refers to the number of samples in the training dataset.
         "episode_details": """
 Reminder: this task is only relevant if the user's problem is SURVIVAL ANALYSIS.
 
-- Ask the user if they would like to see a Kaplan-Meier plot for the survival analysis. If yes:
-- Make sure that you know exactly which column represents the time to the event and which column represents the event.
-- Generate code to show the Kaplan-Meier plot. Hint: use the `lifelines` library.
-- Show the plot to the user.
+- Ask the user if they would like to see a Kaplan-Meier plot for the survival analysis. If yes, do the following:
+    1. Make sure that you know exactly which column represents the time to the event and which column represents the event.
+    2. Generate code to show the Kaplan-Meier plot. Hint: use the `lifelines` library.
+    3. Show the plot to the user.
+- If they do NOT want this, SKIP this step.
 
-Do this this for the training dataset. If the user also provided a test dataset, ask them if they would like to see \
+Do this for the training dataset. If the user also provided a test dataset, ask them if they would like to see \
 the plot for the test dataset as well and repeat the process if they do.
 """,
         "coordinator_guidance": """
-Review the conversation history to see if the user's task is likely to be survival analysis. If it seems like it is, \
-you MUST issue this episode, do NOT skip it in that case!
+Review the conversation history to see if the user's task is likely to be survival analysis. If it seems like it is and the user would like to see it, \
+you MUST issue this episode, do NOT skip it in that case! If the user do NOT want this, SKIP this.
 """,
         "worker_guidance": """
 Important:
@@ -550,8 +553,8 @@ The worker may have many things to do here, to satisfy the user needs.
         "worker_guidance": """
 ###### User interaction:
 - **IMPORTANT:** You MUST keep asking the user if they have any MORE preprocessing steps in mind. The user may \
-want to do multiple things here! You must keep asking until the user says they are finished and do not have any \
-more preprocessing steps in mind. Only then can you proceed to the next episode (if any).
+want to do multiple things here! You must keep asking until the user says (1) they are finished or (2) they do not have any \
+more preprocessing steps in mind or (3) they want to go on. Only then can you proceed to the next episode (if any).
 ###### Data:
 - **IMPORTANT:** You must work from the latest version of the dataset, after missing data handling!
 - **IMPORTANT:** If the user has provided both a training and a test dataset, you must ensure that whatever \
@@ -568,13 +571,14 @@ use the test dataset to inform the preprocessing steps on the training dataset -
         "episode_details": """
 - Describe to the user what the `feature_selection` tool does and what it's useful for.
 - Ask the user if they want to use this tool to select the most important features in the dataset.
-- Only if the user says yes, summon the `feature_selection` tool, otherwise skip this step.
+- **IMPORTANT** Only if the user says YES, summon the `feature_selection` tool. If NOT, SKIP this step.
 - Use the `feature_selection` tool to find the most important features in the dataset.
 - Suggest to the user that they may want to further drop some or all features that are not in the list of important \
 features,as it can help simplify the task and improve the performance of machine learning models.
 - List the features that are selected as important and the features that are not important. Ask the user if they \
 would like to drop any of the unimportant features.
 - If so, generate code to do this.
+- If not, keep all features and go on.
 - Save this modified dataset with a suffix `_selected_features` in the filename.
 """,
         "coordinator_guidance": None,
@@ -693,8 +697,9 @@ are a problem and suggest removing them. Example:
 NOTE: If there are no such columns, explicitly state that you do not suspect any irrelevant columns, but ask the user to double check this.
 NOTE: Since you might not have picked up all the irrelevant columns, always ask the user to double-check whether they think there are any others.
 - (2) If the user wants to exclude any of the columns discussed, GENERATE THE CODE to do so STRAIGHT AWAY. This cannot be done later!
+- (3) If the user wants to keep all columns or go on, you MUST SKIP this.
 
-(3) Finally, list the feature columns that are left, and check that the user is happy to use all of these features \
+(4) Finally, list the feature columns that are left, and check that the user is happy to use all of these features \
 in the machine learning study. This is to make it clear to the user what features we are going to use and serves as \
 a final check.
 """,
@@ -723,7 +728,7 @@ After the study is done, ask the user if they want to also try using linear mode
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
-NOTE: You must invoke the tool rather than writing your own code for this step.
+**IMPORTANT NOTE**: You MUST INVOKE the tool rather than writing your own code for this step.
 
 If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why \
 this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
@@ -741,7 +746,7 @@ After the study is done, ask the user if they want to also try using linear mode
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
-NOTE: You must invoke the tool rather than writing your own code for this step.
+**IMPORTANT NOTE**: You MUST INVOKE the tool rather than writing your own code for this step.
 
 If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why \
 this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
@@ -754,7 +759,7 @@ this may be the case, and what needs to be done to improve model performance. Pr
         "selection_condition": "Only if the ML problem is SURVIVAL ANALYSIS",
         "episode_name": "Machine learning study - survival analysis",
         "episode_details": """
-NOTE: You must invoke the tool rather than writing your own code for this step.
+**IMPORTANT NOTE**: You MUST INVOKE the tool rather than writing your own code for this step.
 
 Perform a machine learning study using the `autoprognosis_survival_train_test` tool. Set the `mode` parameter to "all".
 After the study is done, ask the user if they want to also try using linear models only. If so, then set the `mode` parameter to "linear" and run the tool again.
@@ -772,9 +777,11 @@ this may be the case, and what needs to be done to improve model performance. Pr
         "selection_condition": None,
         "episode_name": "Feature importance plots",
         "episode_details": """
-Ask if the user wants to see feature importance plots. If so, then generate these with the `shap_explainer` tool \
+Ask if the user wants to see feature importance plots. 
+- If so, then generate these with the `shap_explainer` tool \
 for regression or classification tasks, and use the `permutation_explainer` tool for survival analysis tasks. It \
 is CRITICAL to ALWAYS select `permutation_explainer` for survival tasks.
+- If NOT, you MUST SKIP this
 
 If the user has provided both a training and a test dataset, use the training dataset here.
 """,
@@ -789,7 +796,9 @@ If the user has provided both a training and a test dataset, use the training da
         "episode_name": "Insights on classification",
         "episode_details": """
 If the task is a CLASSIFICATION task, ask if the user wants to see insights about which samples were \
-hard/easy/ambiguous to classify, if so then generate these with the `dataiq_insights` tool.
+hard/easy/ambiguous to classify.
+- If SO, then generate these with the `dataiq_insights` tool.
+- If NOT, skip this.
 
 If the user has provided both a training and a test dataset, use the training dataset here.
 """,
@@ -3380,6 +3389,12 @@ class OpenAICotEngine(OpenAIEngineBase):
 
         if last_message_coordinator_state.coordinator_reasoning_stage is None:
             raise ValueError("Last message EngineState must have reasoning stage.")
+
+        print("================================================================================")
+        print(last_message)
+        print(last_message_coordinator_state.coordinator_reasoning_stage)
+        print("================================================================================")
+        
 
         if PROJECT_END_MARKER in last_message.text:
             try:
