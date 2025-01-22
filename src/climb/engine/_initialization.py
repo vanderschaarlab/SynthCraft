@@ -15,6 +15,7 @@ from .engine_openai_cot import AzureOpenAICotEngine, OpenAICotEngine
 from .engine_openai_min_baseline import AzureOpenAIMinBaselineEngine, OpenAIMinBaselineEngine
 from .engine_openai_nextgen import AzureOpenAINextGenEngine, OpenAINextGenEngine
 from .engine_openai_sim import AzureOpenAINextGenEngineSim, OpenAINextGenEngineSim
+from .engine_openai_tool_baseline import AzureOpenAIToolBaselineEngine, OpenAIToolBaselineEngine
 
 dotenv_config = get_dotenv_config()
 
@@ -34,6 +35,9 @@ if dotenv_config.get("BASELINE_METHODS", "False") == "True":
             # Minimal baseline versions:
             OpenAIMinBaselineEngine.get_engine_name(): OpenAIMinBaselineEngine,
             AzureOpenAIMinBaselineEngine.get_engine_name(): AzureOpenAIMinBaselineEngine,
+            # Tool baseline versions:
+            OpenAIToolBaselineEngine.get_engine_name(): OpenAIToolBaselineEngine,
+            AzureOpenAIToolBaselineEngine.get_engine_name(): AzureOpenAIToolBaselineEngine,
         }
     )
 

@@ -3394,7 +3394,6 @@ class OpenAICotEngine(OpenAIEngineBase):
         print(last_message)
         print(last_message_coordinator_state.coordinator_reasoning_stage)
         print("================================================================================")
-        
 
         if PROJECT_END_MARKER in last_message.text:
             try:
