@@ -10,6 +10,19 @@ from ruamel.yaml.representer import RoundTripRepresenter
 # from ruamel.yaml.comments import CommentedMap as ordereddict
 
 
+def check_extra_available() -> bool:
+    try:
+        import cleanlab  # noqa: F401  # type: ignore
+        import pyDVL  # noqa: F401  # type: ignore
+        # TODO: Update with any others.
+
+        EXTRA_AVAILABLE = True
+    except ImportError:
+        EXTRA_AVAILABLE = False
+
+    return EXTRA_AVAILABLE
+
+
 def ui_log(*args: Any, **kwargs) -> None:
     print("[UI]  >>>", *args, **kwargs)
 

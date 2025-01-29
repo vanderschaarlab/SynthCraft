@@ -17,7 +17,7 @@ from climb.common import (
     ToolSpecs,
     UIControlledState,
 )
-from climb.common.utils import d2m, engine_log, m2d, update_templates
+from climb.common.utils import check_extra_available, d2m, engine_log, m2d, update_templates
 from climb.db import DB
 from climb.tool import list_all_tool_specs
 
@@ -48,16 +48,19 @@ DEBUG__USE_FILTER_TOOLS = True  # If False, the worker will always be given all 
 # region: === TOOL SETS ===
 TOOL_SETS = ["default", "full"]
 
-try:
-    import cleanlab  # noqa: F401  # type: ignore
-    import pyDVL  # noqa: F401  # type: ignore
-
-    EXTRA_AVAILABLE = True
-except ImportError:
-    EXTRA_AVAILABLE = False
-
-if EXTRA_AVAILABLE:
+if check_extra_available():
     TOOL_SETS.append("extra")
+
+ToolSetParameter = EngineParameter(
+    name="tool_set",
+    description=(
+        # TODO: Add more information.
+        "The set of tools to be used by the engine."
+    ),
+    kind="enum",
+    enum_values=TOOL_SETS,
+    default="default",
+)
 
 # endregion
 
@@ -2789,18 +2792,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
     @staticmethod
     def get_engine_parameters() -> List[EngineParameter]:
         parent_params = OpenAIEngineBase.get_engine_parameters()
-        return parent_params + [
-            EngineParameter(
-                name="tool_set",
-                description=(
-                    # TODO: Add more information.
-                    "The set of tools to be used by the engine."
-                ),
-                kind="enum",
-                enum_values=TOOL_SETS,
-                default="default",
-            ),
-        ]
+        return parent_params + [ToolSetParameter]
 
     def _set_initial_messages(self, agent: EngineAgent) -> List[Message]:
         if agent.agent_type == "worker":
@@ -3774,18 +3766,7 @@ class AzureOpenAIDCEngine(
     @staticmethod
     def get_engine_parameters() -> List[EngineParameter]:
         parent_params = AzureOpenAIEngineMixin.get_engine_parameters()
-        return parent_params + [
-            EngineParameter(
-                name="tool_set",
-                description=(
-                    # TODO: Add more information.
-                    "The set of tools to be used by the engine."
-                ),
-                kind="enum",
-                enum_values=TOOL_SETS,
-                default="default",
-            ),
-        ]
+        return parent_params + [ToolSetParameter]
 
     @staticmethod
     def get_engine_name() -> str:
