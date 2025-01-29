@@ -8,6 +8,7 @@ import rich.pretty
 
 from climb.common import (
     Agent,
+    EngineParameter,
     EngineState,
     KeyGeneration,
     Message,
@@ -43,6 +44,22 @@ DEBUG__PRINT_TOOLS = False
 DEBUG__PRINT_DELTA = False
 # ---
 DEBUG__USE_FILTER_TOOLS = True  # If False, the worker will always be given all tools.
+
+# region: === TOOL SETS ===
+TOOL_SETS = ["default", "full"]
+
+try:
+    import cleanlab  # noqa: F401  # type: ignore
+    import pyDVL  # noqa: F401  # type: ignore
+
+    EXTRA_AVAILABLE = True
+except ImportError:
+    EXTRA_AVAILABLE = False
+
+if EXTRA_AVAILABLE:
+    TOOL_SETS.append("extra")
+
+# endregion
 
 # region: === Prompt templates ===
 
@@ -2769,6 +2786,22 @@ class OpenAIDCEngine(OpenAIEngineBase):
                     raise ValueError("EngineState was None.")
                 self.session.engine_state = messages_with_engine_state[-1].engine_state
 
+    @staticmethod
+    def get_engine_parameters() -> List[EngineParameter]:
+        parent_params = OpenAIEngineBase.get_engine_parameters()
+        return parent_params + [
+            EngineParameter(
+                name="tool_set",
+                description=(
+                    # TODO: Add more information.
+                    "The set of tools to be used by the engine."
+                ),
+                kind="enum",
+                enum_values=TOOL_SETS,
+                default="default",
+            ),
+        ]
+
     def _set_initial_messages(self, agent: EngineAgent) -> List[Message]:
         if agent.agent_type == "worker":
             msg_w_dc = get_last_message_like(self.get_message_history(), _has_delegated_content)
@@ -3737,6 +3770,22 @@ class AzureOpenAIDCEngine(
             # ---
             **kwargs,
         )
+
+    @staticmethod
+    def get_engine_parameters() -> List[EngineParameter]:
+        parent_params = AzureOpenAIEngineMixin.get_engine_parameters()
+        return parent_params + [
+            EngineParameter(
+                name="tool_set",
+                description=(
+                    # TODO: Add more information.
+                    "The set of tools to be used by the engine."
+                ),
+                kind="enum",
+                enum_values=TOOL_SETS,
+                default="default",
+            ),
+        ]
 
     @staticmethod
     def get_engine_name() -> str:
