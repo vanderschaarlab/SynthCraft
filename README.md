@@ -13,6 +13,35 @@
 [![slack](https://img.shields.io/badge/chat-on%20slack-purple?logo=slack)](https://join.slack.com/t/vanderschaarlab/shared_invite/zt-1u2rmhw06-sHS5nQDMN3Ka2Zer6sAU6Q)
 <!-- exclude_docs_end -->
 
+# <img src="docs/assets/climb-logo-no-text.png" height=25> CliMB-DC
+
+This repository contains **CliMB-DC**, a Data-Centric copilot system that builds upon the [CliMB](https://github.com/vanderschaarlab/climb) ecosystem.
+
+## 📦 Installation: CliMB-DC
+The installation process is analogous to the original CliMB system, with the only difference being in the [📈 Install the CliMB package step](https://climb-ai.readthedocs.io/en/latest/installation.html#install-the-climb-package). You should replace the command:
+```bash
+git clone https://github.com/vanderschaarlab/climb.git
+```
+with:
+```bash
+git clone https://github.com/DrShushen/climb_cot.git@consolidated
+```
+
+# 🚀 Usage
+
+In order to run CliMB-DC, you can follow the original CliMB quickstart guide [https://climb-ai.readthedocs.io/en/latest/quickstart.html] but choose the *engine* (in the *Research Management* page, *Select engine* dropdown) to be:
+```
+openai_dc
+```
+or
+```
+azure_openai_dc
+```
+depending on the OpenAI model provider you are using.
+
+---
+
+*Below you can find the content of the original README.md file for the CliMB system.*
 
 # <img src="docs/assets/climb-logo-no-text.png" height=25> CliMB
 
