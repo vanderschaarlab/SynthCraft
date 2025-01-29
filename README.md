@@ -24,7 +24,7 @@ git clone https://github.com/vanderschaarlab/climb.git
 ```
 with:
 ```bash
-git clone https://github.com/DrShushen/climb-dc.git@consolidated
+git clone https://github.com/DrShushen/climb-dc.git
 ```
 
 # 🚀 Usage
