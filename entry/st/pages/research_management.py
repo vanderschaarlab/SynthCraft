@@ -184,12 +184,12 @@ with col2b:
     cannot_create = False
     for param in ENGINE_MAP[cast(str, engine_name)].get_engine_parameters():
         # Values set by static methods. --- --- ---
-        if engine_name == "azure_openai":
+        if "azure" in engine_name:
             if load_azure_openai_configs(AZURE_OPENAI_CONFIG_PATH) == []:
                 st.markdown("No Azure OpenAI configurations found.")
                 cannot_create = True
                 break
-        if engine_name == "azure_openai" and param.name == "model_id":
+        if "azure" in engine_name and param.name == "model_id":
             static_method = getattr(EngineClass, param.set_by_static_method)
             config_item_name = engine_params["config_item_name"]
             value_set = static_method(config_item_name=config_item_name)
