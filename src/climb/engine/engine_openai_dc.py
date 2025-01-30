@@ -199,16 +199,58 @@ EPISODE_DB = [
 - Ask the user if they have their data file(s) ready as a CSV file. Explain briefly what a training dataset and a test \
 dataset are. Tell the user that they have to upload their training dataset, and they can also upload a test dataset if \
 they have it.
+- Ask the user if their datasets are spread across multiple files. Explain that if they are, we can handle merging them \
+into a single train or test dataset. Ask them to upload all the relevant files they have.
 - Wait for user response.
-- If the user has files ready, proceed to summoning the tool. You MUST SUMMON the `upload_data_multiple_files` tool so that the user can upload their data file(s).\
-DO NOT wait for the user to ask for this.
-- Otherwise, STOP the task.
-- Finally, confirm with the user which file is the training dataset and which is the test dataset (if applicable). If \
+- If the user has files ready, proceed to summoning the tool. Otherwise, STOP the task.
+- Then summon the `upload_data_multiple_files` tool so that the user can upload their data file(s).
+- Finally, confirm with the user which file(s) are the training dataset and which are the test dataset (if applicable). If \
 it is clear from the filenames, suggest this to the user and ask for confirmation.
 """,
         "coordinator_guidance": None,
-        "worker_guidance": None,
+        "worker_guidance": "Do no process the data files in any way during this step. We will handle that in the next steps.",
         "tools": ["upload_data_multiple_files"],
+    },
+    {
+        "episode_id": "DP-F_1",
+        "selection_condition": None,
+        "status_reason": None,
+        "episode_name": "Merge multiple data files",
+        "episode_details": """
+- If there are multiple files for the training and/or test dataset, tell the user that you will have to merge them into a single file now.
+- Ask if there is a unique key that can be used to merge the files. Tell the user it is OK to be unsure, and that you \
+- If there is no unique key, ask if one can be created by creating a unique combination of columns.
+will help them figure it out. Columns can have different names in different files, so you may need to \
+confirm whether similar columns names refer to the same column across the files, make you best guess and suggest column matches if the user is unsure.
+- Generate code to merge the files into a single training dataset (and a single test dataset if applicable), with an inner join. This should be done \
+using the unique key or combination of columns.
+- Save the merged datasets with the suffix `_merged` in the filename.
+- Generate code to sense check the merged datasets to ensure that the merge was successful, using the following checks:
+    - show the number of rows lost in the merge. i.e. the number of rows in the largest of the original datasets minus the number of rows in the merged dataset.
+    - show the number of NaN values introduced in the merge.
+
+- Ask the user to confirm that the merge was successful, by reviewing the ``_merged.csv` file in the working directory tab.
+- If not successful, ask the user to provide more information to help resolve the issue and re-run the merge according to the feedback.
+- When the merge is successful, proceed to the next step.
+""",
+        "coordinator_guidance": None,
+        "worker_guidance": """
+- You MUST NEVER skip this step if the user has multiple files for either the training and/or test dataset.
+- You MUST NOT use any tool here. DO NOT SUMMON ANY TOOLS.
+- You MUST generate code in this step!
+- So, your response MUST have:
+DEPENDENCIES:
+```
+pandas
+```
+CODE:
+```
+... your code to complete the episode ...
+```
+
+- If the user has provided both a training and a test dataset files, you must check *both*.
+""",
+        "tools": [],
     },
     {
         "episode_id": "ENV_2",
@@ -433,7 +475,7 @@ confirm this), show it to the user using the `<WD>/image_name.extension` format 
         "tools": [],
     },
     {
-        "episode_id": "DP-F_1",
+        "episode_id": "DP-F_2",
         "status_reason": None,
         "selection_condition": None,
         "episode_name": "Free text field data extraction",
@@ -1105,6 +1147,7 @@ outcomes of previous tasks or episodes.
 
 PLAN = [
     "ENV_1",
+    "DP-F_1",
     "ENV_2",
     "ENV_3",
     "INFO_1",
@@ -1115,7 +1158,7 @@ PLAN = [
     "EDA_3",
     "EDA_4",
     "EDA_5",
-    "DP-F_1",
+    "DP-F_2",
     "DP-BM_1",
     "DP-M_1",
     "DP-M_2",
