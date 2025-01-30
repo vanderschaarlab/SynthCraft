@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import pydantic
 import rich.pretty
+import rich.prompt
 
 from climb.common import (
     Agent,
@@ -19,7 +20,7 @@ from climb.common import (
 )
 from climb.common.utils import check_extra_available, d2m, engine_log, m2d, update_templates
 from climb.db import DB
-from climb.tool import list_all_tool_specs
+from climb.tool import list_all_tool_names, list_all_tool_specs
 
 from ._azure_config import (
     AzureOpenAIConfig,
@@ -43,7 +44,12 @@ DEBUG__PRINT_TOOLS = False
 # ---
 DEBUG__PRINT_DELTA = False
 # ---
-DEBUG__USE_FILTER_TOOLS = True  # If False, the worker will always be given all tools.
+DEBUG__USE_FILTER_TOOLS = True  # Only True is supported in this engine.
+# ---
+DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET = False
+
+if DEBUG__USE_FILTER_TOOLS is False:
+    raise RuntimeError("DEBUG__USE_FILTER_TOOLS must be True for this engine.")
 
 # region: === TOOL SETS ===
 TOOL_SETS = ["default", "full"]
@@ -427,6 +433,51 @@ confirm this), show it to the user using the `<WD>/image_name.extension` format 
         "tools": [],
     },
     {
+        "episode_id": "DP-F_1",
+        "status_reason": None,
+        "selection_condition": None,
+        "episode_name": "Free text field data extraction",
+        "episode_details": """
+- Describe to the user what the `feature_extraction_from_text` tool does and what it's useful for.
+- Ask the user if any of the fields are free text fields that they would like to extract usable features from. Remind the \
+user they can view the data in the working directory to see the columns, if needed.
+- If there are no free text fields, skip the rest of this episode.
+- If there are free text fields, ask the user if they would like to use the `feature_extraction_from_text` tool to extract \
+features from the free text fields.
+- Ask the user to confirm which columns are free text fields that they would like to extract features from and then list the \
+topics they would like to extract from the text. Ask them at the same time to provide any essential synonyms that must be looked for.
+- Take the user's response and form the most comprehensive topic_dicts json string you can. This means you must \
+include the 10 most likely synonyms for each topic.
+- Call the `feature_extraction_from_text` tool with the topics_dict and other parameters needed to extract the features from the free text fields.
+""",
+        "coordinator_guidance": None,
+        "worker_guidance": """
+When compiling the topics_dict, ensure that the keys are the column names and the values are dictionaries with the \
+topics as keys and lists of synonyms as values. The synonyms should be words that are likely to appear in \
+the text and are related to the topic. For example:
+{
+    "column1": {
+        "topic1": ["synonym1", "synonym2", ...],
+        "topic2": ["synonym3", "synonym4", ...]
+    },
+    "column2": {
+        "topic1": ["synonym1", "synonym2", ...],
+        "topic3": ["synonym5", "synonym6", ...]
+    },
+}
+The column names are those confirmed as free text fields by the user. The topics are the topics the user has specified they are \
+interested in extracting into categorical columns. For the list of synonyms, you should create a list of the top ten terms \
+that you think are most likely to appear in the text and are related to the topic.
+
+NOTE: You MUST make the most comprehensive list of synonyms. Make sure to include the shortest feasible version of each synonym \
+that is specific to the topic. For example, if the topic is "treatment", the synonyms should be "treatment", "treat", "therapy", \
+etc. NOT "medical treatment", "drug therapy", etc.
+NOTE: You MUST NOT ask the user to suggest the synonyms. You MUST use your best judgment to determine the most appropriate \
+synonyms for each topic.
+""",
+        "tools": ["feature_extraction_from_text"],
+    },
+    {
         "episode_id": "DP-BM_1",
         "status_reason": None,
         "selection_condition": None,
@@ -612,6 +663,100 @@ If the user has provided both a training and a test dataset, you must run the to
 if the user wants to drop any columns, you must apply the same transformation to BOTH datasets.
 """,
         "tools": ["feature_selection"],
+    },
+    {
+        "episode_id": "DP-AM_3",
+        "status_reason": None,
+        "selection_condition": None,
+        "episode_name": "Data valuation",
+        "episode_details": """
+- Describe to the user what the `knn_shapley_data_valuation` tool does and what it's useful for.
+- Ask the user if they want to use this tool to discover which of the samples are the best and worst predictors.
+- Only if the user says yes, summon the `knn_shapley_data_valuation` tool, otherwise skip this step.
+- Use the `knn_shapley_data_valuation` tool to find which of the samples are the best and worst predictors.
+- Suggest to the user that they may want to further drop all the samples that are not in the list of best predictors.
+- State the number of samples that are selected as good and bad predictors.
+- List the sample indices that could be dropped due to being bad predictors. Ask the user if they \
+would like to drop any of the samples deemed as poor predictors.
+- If so, generate code to do this.
+- Save this modified dataset with a suffix `_data_valuation_samples` in the filename.
+""",
+        "coordinator_guidance": None,
+        "worker_guidance": """
+**IMPORTANT**
+If the user has provided both a training and a test dataset, you must run the tool on the training dataset only. Then, \
+""",
+        "tools": ["knn_shapley_data_valuation"],
+    },
+    {
+        "episode_id": "DP-AM_4",
+        "status_reason": None,
+        "selection_condition": None,
+        "episode_name": "Outlier detection",
+        "episode_details": """
+- Describe to the user what the `outlier_detection` tool does and what it's useful for.
+- Ask the user if they want to use this tool to discover and remove outliers in the dataset.
+- Only if the user says yes, summon the `outlier_detection` tool, otherwise skip this step.
+- Use the `outlier_detection` tool to find and remove the outliers in the dataset.
+- Tell the user how many outliers were found and removed.
+- Ask the user if they are happy with the removal of the outliers. If yes, this stage is complete. \
+If no, ask them if they would like to revert to using the dataset they had before summoning the tool, with the outliers.
+""",
+        "coordinator_guidance": None,
+        "worker_guidance": """
+**IMPORTANT**
+If the task is survival analysis, then you must do the following BEFORE running the feature selection tool:
+1. Confirm what is the TIME variable (the variable that has the time index representing event time)
+2. Confirm what is the EVENT variable (the variable that represents the event itself, usually binary)
+Do NOT remove these columns in the feature selection step!
+
+If the user has provided both a training and a test dataset, summon the tool twice, once for the training dataset \
+and once for the test dataset.
+""",
+        "tools": ["outlier_detection"],
+    },
+    {
+        "episode_id": "DP-AM_5",
+        "status_reason": None,
+        "selection_condition": None,
+        "episode_name": "Balance the dataset",
+        "episode_details": """
+- Describe to the user what the `balance_data` tool does and what it's useful for.
+- Generate code to show the user the class distribution of the target variable.
+- Ask the user if they want to better balance the dataset by oversampling or undersampling the classes, \
+making sure to explain why this can be beneficial for the model.
+- If no, skip the rest of this episode. If yes, provide information about the different options for \
+balancing the data (Undersampling, Oversampling, SMOTE, and Combine). Describe when each method is best suitable.
+- Recommend which method is best given the class distribution of the target variable calculated earlier.
+- Ask the user which one they would like to use.
+- use the `balance_data` tool to balance the data. 
+""",
+        "coordinator_guidance": None,
+        "worker_guidance": """
+If the user's task is regression or survival analysis skip this whole episode as it is only relevant for classification problems.
+- **IMPORTANT:** You must work from the latest version of the dataset, after missing data handling!
+""",
+        "tools": ["balance_data"],
+    },
+    {
+        "episode_id": "DP-AM_6",
+        "status_reason": None,
+        "selection_condition": None,
+        "episode_name": "Data Suite Insights",
+        "episode_details": """
+- Ask the user if they are interested in understanding regions of your data where a model will perform poorly even though \
+the the data will not be directly improved by the insights.
+- Describe to the user what the `data_suite_insights` tool does and what it's useful for.
+- If yes, use the `data_suite_insights` tool to generate insights into the dataset. The tool will return \
+exemplar records that the user may want to collect more records similar to in order to improve the model's performance.
+""",
+        "coordinator_guidance": None,
+        "worker_guidance": """
+If the user is not interested in understanding regions of your data where a model will perform poorly, skip the rest of this step.
+If the user's task is regression or survival analysis skip this whole episode as it is only relevant for classification problems.
+- **IMPORTANT:** You must work from the latest version of the dataset, after missing data handling!
+""",
+        "tools": ["data_suite_insights"],
     },
     {
         "episode_id": "MLC_1",
@@ -970,6 +1115,7 @@ PLAN = [
     "EDA_3",
     "EDA_4",
     "EDA_5",
+    "DP-F_1",
     "DP-BM_1",
     "DP-M_1",
     "DP-M_2",
@@ -977,6 +1123,10 @@ PLAN = [
     "DP-M_4",
     "DP-AM_1",
     "DP-AM_2",
+    "DP-AM_3",
+    "DP-AM_4",
+    "DP-AM_5",
+    "DP-AM_6",
     "MLC_1",
     "MLC_3",
     "MLC_4",
@@ -2175,12 +2325,8 @@ MESSAGE_OPTIONS = {
 # region: === Engine helper functions (may be considered for moving to a separate module) ===
 
 
-def get_all_subtasks(structured_plan: List[Dict[str, Any]]) -> List[str]:
-    all_subtasks = []
-    for task in structured_plan:
-        for subtask in task["subtasks"]:
-            all_subtasks.append(subtask["subtask_id"])
-    return all_subtasks
+def get_all_episode_ids_from_db(episodes_db: List[Dict]) -> List[str]:
+    return [ep["episode_id"] for ep in episodes_db]
 
 
 def filter_messages_by_agent(
@@ -2735,6 +2881,20 @@ class WorkerCotState(pydantic.BaseModel):
     delegated_tools: Optional[List[str]] = [] if DEBUG__USE_FILTER_TOOLS else None
 
 
+# NOTE:
+# Define the *additional* tools.
+# If this tool_set -> then allow episodes with these tools.
+# Otherwise, these tools, and episodes with these tools, are excluded!
+# If tools are set to `None` in an episode EPISODE_DB, the additional tools are NOT going to be used unless the tool_set
+# is one that allows them!
+ADDITIONAL_TOOLS = dict()
+ADDITIONAL_TOOLS["full"] = ["feature_extraction_from_text", "balance_data", "data_suite_insights"]
+ADDITIONAL_TOOLS["extra"] = ["knn_shapley_data_valuation", "outlier_detection"]
+# Therefore:
+EXCLUDE_DEFAULT = ADDITIONAL_TOOLS["full"] + ADDITIONAL_TOOLS["extra"]
+EXCLUDE_FULL = ADDITIONAL_TOOLS["extra"]
+
+
 class OpenAIDCEngine(OpenAIEngineBase):
     def __init__(
         self,
@@ -2769,7 +2929,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
                     "coordinator": m2d(
                         CoordinatorCotState(
                             coordinator_reasoning_stage="write_observations",
-                            current_plan=PLAN,
+                            current_plan=self.plan,
                             last_episode="None",
                         )
                     ),
@@ -2789,6 +2949,71 @@ class OpenAIDCEngine(OpenAIEngineBase):
                     raise ValueError("EngineState was None.")
                 self.session.engine_state = messages_with_engine_state[-1].engine_state
 
+    def _before_define_agents_hook(self) -> None:
+        super()._before_define_agents_hook()
+
+        # === Set up tool & episode filtering. ===
+
+        # Get all the allowed tools, that is, all tools except the excluded ones (based on tool_set engine parameter).
+        all_available_tools = list_all_tool_names(filter_tool_names=None)
+        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+            print("All available tools:")
+            rich.pretty.pprint(all_available_tools)
+        tool_set = self.session.engine_params["tool_set"]
+        if tool_set == "default":
+            exclude_tools = EXCLUDE_DEFAULT
+        elif tool_set == "full":
+            exclude_tools = EXCLUDE_FULL
+        else:
+            exclude_tools = []
+        allowed_tools = [t for t in all_available_tools if t not in exclude_tools]
+
+        # Go through EPISODE_DB and the cases where tools are set to None, replacing with allowed tools.
+        # This is because None represents ALL TOOLS (later in the logic) but we must ensure that ONLY allowed tools
+        # # are used.
+        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+            print("Allowed tools:")
+            rich.pretty.pprint(allowed_tools)
+        self.allowed_tools = allowed_tools
+        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+            print("Allowed tools:")
+            rich.pretty.pprint(allowed_tools)
+        # Filter episodes.
+        self.episode_db = copy.deepcopy(EPISODE_DB)
+        # NOTE: Must use self.episode_db, not EPISODE_DB in this engine!
+        for idx, episode in enumerate(EPISODE_DB):
+            if episode["tools"] is None:
+                # If episode has None tools, replace with **allowed tools** (NOT all available tools).
+                self.episode_db[idx]["tools"] = allowed_tools
+        # NOTE: Now we no longer have any episodes with None (=use all) tools. All tools are explicitly listed.
+        # Filter episodes that have any of the excluded tools.
+
+        # Filter out episodes that have any of the excluded tools.
+        # Set the self.episode_db to only include episodes that do not have any of the excluded tools.
+        filtered_episode_ids = []
+        for episode in self.episode_db:
+            # If episode has any tools that match exclude_tools, exclude it.
+            if any(tool in exclude_tools for tool in episode["tools"]):
+                if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+                    print(f">>>>>>>> Excluding episode {episode['episode_id']} because of tools: {episode['tools']}")
+                continue
+            filtered_episode_ids.append(episode["episode_id"])
+        self.episode_db = [ep for ep in self.episode_db if ep["episode_id"] in filtered_episode_ids]
+        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+            print("Episode DB after excluded tools have been filtered out:")
+            rich.pretty.pprint(self.episode_db)
+
+        # Filter the PLAN (set self.plan) to only include episodes whose `episode_id`s are in self.episode_db.
+        # (i.e. only include episodes that have not been excluded based on the tool_set parameter).
+        self.plan = [ep for ep in PLAN if ep in get_all_episode_ids_from_db(self.episode_db)]
+        # NOTE: Must use self.plan, not PLAN in this engine!
+        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+            print("PLAN after filtering out episodes with excluded tools:")
+            rich.pretty.pprint(self.plan)
+        
+        # NOTE: Anywhere else in this engine, use self.episode_db and self.plan, not EPISODE_DB and PLAN!
+        # === Set up tool & episode filtering. (END) ===
+
     @staticmethod
     def get_engine_parameters() -> List[EngineParameter]:
         parent_params = OpenAIEngineBase.get_engine_parameters()
@@ -2802,16 +3027,16 @@ class OpenAIDCEngine(OpenAIEngineBase):
             delegated_content = None
 
         completed_episodes, remaining_episodes = get_completed_and_remaining_episodes(
-            PLAN, self.get_current_last_episode()
+            self.plan, self.get_current_last_episode()
         )
         system_message_text = update_templates(
             body_text=agent.system_message_template,
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
-                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(EPISODE_DB),
-                PLAN_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, PLAN),
-                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, completed_episodes),
-                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, remaining_episodes),
+                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(self.episode_db),
+                PLAN_REPLACE_MARKER: format_episodes_id_name(self.episode_db, self.plan),
+                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(self.episode_db, completed_episodes),
+                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(self.episode_db, remaining_episodes),
                 WORKER_ACTUAL_TASK_REPLACE_MARKER: str(delegated_content),  # Only applicable for worker.
                 MAX_CHARS_REPLACE_MARKER: str(self.max_tokens_per_message),
                 # Privacy mode templates:
@@ -2896,10 +3121,10 @@ class OpenAIDCEngine(OpenAIEngineBase):
             body_text=agent.system_message_template,
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
-                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(EPISODE_DB),
-                PLAN_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, self.get_current_plan()),
-                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, completed_episodes),
-                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, remaining_episodes),
+                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(self.episode_db),
+                PLAN_REPLACE_MARKER: format_episodes_id_name(self.episode_db, self.get_current_plan()),
+                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(self.episode_db, completed_episodes),
+                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(self.episode_db, remaining_episodes),
                 LAST_EPISODE_REPLACE_MARKER: self.get_current_last_episode(),
                 REASONING_STEP_REPLACE_MARKER: COORDINATOR_REASONING_COT_STAGE_MAP[
                     coordinator_state.coordinator_reasoning_stage
@@ -2971,10 +3196,10 @@ class OpenAIDCEngine(OpenAIEngineBase):
             body_text=MESSAGE_OPTIONS["coordinator"]["reminder"],
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
-                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(EPISODE_DB),
-                PLAN_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, self.get_current_plan()),
-                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, completed_episodes),
-                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, remaining_episodes),
+                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(self.episode_db),
+                PLAN_REPLACE_MARKER: format_episodes_id_name(self.episode_db, self.get_current_plan()),
+                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(self.episode_db, completed_episodes),
+                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(self.episode_db, remaining_episodes),
                 LAST_EPISODE_REPLACE_MARKER: self.get_current_last_episode(),
                 REASONING_STEP_REPLACE_MARKER: COORDINATOR_REASONING_COT_STAGE_MAP[
                     coordinator_state.coordinator_reasoning_stage
@@ -3024,6 +3249,8 @@ class OpenAIDCEngine(OpenAIEngineBase):
             tools = list_all_tool_specs()
         else:
             tool_names = d2m(msg_w_dc.engine_state.agent_state["worker"], WorkerCotState).delegated_tools  # type: ignore
+            if tool_names is None:
+                raise ValueError("Delegated tools must not be None as we have an explicit tool filtering mechanism.")
             tools = list_all_tool_specs(filter_tool_names=tool_names)
 
         worker_messages = filter_messages_by_agent(
@@ -3125,7 +3352,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
     def get_current_plan(self) -> List[str]:
         msg_w_plan = get_last_message_like(self.get_message_history(), _has_plan)
         if not msg_w_plan:
-            return copy.deepcopy(PLAN)
+            return copy.deepcopy(self.plan)
         else:
             return d2m(msg_w_plan.engine_state.agent_state["coordinator"], CoordinatorCotState).current_plan  # type: ignore
 
@@ -3320,7 +3547,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
                 try:
                     worker_actual_task = create_worker_actual_task(
                         plan=plan,
-                        episode_db=EPISODE_DB,
+                        episode_db=self.episode_db,
                         selected_episode=next_episode,
                     )
                     # Any replacements:
@@ -3347,7 +3574,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
 
                 # Get the list of relevant tools.
                 if DEBUG__USE_FILTER_TOOLS:
-                    subtask_dict = [subtask for subtask in EPISODE_DB if subtask["episode_id"] == next_episode][0]
+                    subtask_dict = [subtask for subtask in self.episode_db if subtask["episode_id"] == next_episode][0]
                     if subtask_dict["tools"] is None:
                         relevant_tools = None
                     else:

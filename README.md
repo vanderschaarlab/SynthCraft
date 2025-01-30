@@ -39,6 +39,27 @@ azure_openai_dc
 ```
 depending on the OpenAI model provider you are using.
 
+## 📃 Note on Licensing
+
+The code inside [`impl_agpl` directory](./src/climb/tool/impl_agpl) is only compatible with the [AGPL-3.0 license](https://choosealicense.com/licenses/agpl-3.0/).
+
+It is not compatible with the [Apache-2.0 license](https://choosealicense.com/licenses/apache-2.0/), under which the core of the project (CliMB-DC **core**) is licensed.
+
+If you wish to use the extra tools provided in the `impl_agpl` directory, you must explicitly install the `[extra]` version of CliMB-DC like so:
+
+```bash
+git clone https://github.com/vanderschaarlab/climb.git
+cd climb
+pip install -e climb[extra]
+```
+
+If you are forking/deriving from the code that **requires the tools in the `impl_agpl` directory** (i.e. CliMB-DC with `[extra]`), you **must** also license your code under the AGPL-3.0 license.
+
+**Note:**
+
+The code of CliMB-DC **core** does not depend on the code in the `impl_agpl` directory or its functionality. The `[extra]` version is *completely isolated and optional*.
+Hence the core of CliMB-DC can be used under the Apache-2.0 license while the tools in the `impl_agpl` directory can be used *only* under the AGPL-3.0 license.
+
 ---
 
 *Below you can find the content of the original README.md file for the CliMB system.*

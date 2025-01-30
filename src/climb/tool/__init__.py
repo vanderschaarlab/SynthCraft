@@ -1,5 +1,7 @@
 from typing import Any, Dict, List, Optional
 
+from climb.common.utils import check_extra_available
+
 from .impl.tool_autoprognosis import (
     AutoprognosisClassification,
     AutoprognosisClassificationTrainTest,
@@ -9,9 +11,12 @@ from .impl.tool_autoprognosis import (
     AutoprognosisSurvival,
     AutoprognosisSurvivalTrainTest,
 )
-from .impl.tool_data_centric import DataIQInsights  # ConfidentLearningInsights
+from .impl.tool_balance_data import BalanceData
+from .impl.tool_data_centric import DataIQInsights
+from .impl.tool_data_suite import DataSuiteInsights
 from .impl.tool_descriptive_stats import DescriptiveStatistics
 from .impl.tool_exploratory_data_analysis import ExploratoryDataAnalysis
+from .impl.tool_feature_extraction_from_text import FeatureExtractionFromText
 from .impl.tool_feature_importance import PermutationExplainer, ShapExplainer
 from .impl.tool_feature_selection import BorutaFeatureSelection
 from .impl.tool_hardware import HardwareInfo
@@ -20,6 +25,11 @@ from .impl.tool_paper import UploadAndSummarizeExamplePaper
 from .impl.tool_upload import UploadDataFile, UploadDataMultipleFiles
 from .tool_comms import ToolCommunicator, ToolOutput, ToolReturnIter
 from .tools import ToolBase, UserInputRequest
+
+if check_extra_available():
+    # Any tools that are incompatible with Apache 2.0 license should be imported here.
+    from .impl_agpl.tool_data_valuation import KNNShapleyValuation
+    from .impl_agpl.tool_outlier_detection import CleanlabOutlierDetection
 
 
 def get_tool(tool_name: str) -> ToolBase:
@@ -65,7 +75,6 @@ _AVAILABLE_TOOLS_LIST = [
     AutoprognosisRegressionTrainTest(),
     AutoprognosisSurvivalTrainTest(),
     BorutaFeatureSelection(),
-    # ConfidentLearningInsights(),
     DataIQInsights(),
     DescriptiveStatistics(),
     ExploratoryDataAnalysis(),
@@ -77,7 +86,20 @@ _AVAILABLE_TOOLS_LIST = [
     UploadAndSummarizeExamplePaper(),
     UploadDataFile(),
     UploadDataMultipleFiles(),
+    DataSuiteInsights(),
+    BalanceData(),
+    FeatureExtractionFromText(),
 ]
+
+if check_extra_available():
+    # Any tools that are incompatible with Apache 2.0 license should added here.
+    _AVAILABLE_TOOLS_LIST.extend(
+        [
+            CleanlabOutlierDetection(),
+            KNNShapleyValuation(),
+        ]
+    )
+
 AVAILABLE_TOOLS = {tool.name: tool for tool in _AVAILABLE_TOOLS_LIST}
 
 __all__ = [

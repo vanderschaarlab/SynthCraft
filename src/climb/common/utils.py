@@ -1,7 +1,7 @@
 import os
 import re
 from difflib import SequenceMatcher
-from typing import Any, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar
 
 import pandas as pd
 from ruamel.yaml import YAML
@@ -13,14 +13,22 @@ from ruamel.yaml.representer import RoundTripRepresenter
 def check_extra_available() -> bool:
     try:
         import cleanlab  # noqa: F401  # type: ignore
-        import pyDVL  # noqa: F401  # type: ignore
-        # TODO: Update with any others.
+        import pydvl  # noqa: F401  # type: ignore
+        # NOTE: Update with any other dependencies that are limited to the `[extra]` installation.
 
         EXTRA_AVAILABLE = True
     except ImportError:
         EXTRA_AVAILABLE = False
 
     return EXTRA_AVAILABLE
+
+
+def raise_if_extra_not_available() -> NoReturn:
+    if not check_extra_available():
+        raise NotImplementedError(
+            "This code requires the installation of the `[extra]` dependencies. Please read and understand the licensing "
+            "implications of installing the `[extra]` dependencies in the `README.md` of this project."
+        )
 
 
 def ui_log(*args: Any, **kwargs) -> None:
