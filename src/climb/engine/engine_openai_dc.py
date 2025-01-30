@@ -3010,7 +3010,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
         if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
             print("PLAN after filtering out episodes with excluded tools:")
             rich.pretty.pprint(self.plan)
-        
+
         # NOTE: Anywhere else in this engine, use self.episode_db and self.plan, not EPISODE_DB and PLAN!
         # === Set up tool & episode filtering. (END) ===
 

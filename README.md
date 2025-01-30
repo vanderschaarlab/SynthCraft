@@ -1,18 +1,3 @@
-<!-- CliMB README.md -->
-
-<!-- exclude_docs -->
-[![Documentation Status](https://readthedocs.org/projects/climb-ai/badge/?version=latest)](https://climb-ai.readthedocs.io/en/latest/?badge=latest)
-[![YouTube](https://img.shields.io/badge/YouTube-%23FF0000.svg?logo=YouTube&logoColor=white)](https://www.youtube.com/watch?v=76XuR0K3F5Y)
-
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/release/python-370/)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE.txt)
-<!-- [![PyPI-Server](https://img.shields.io/pypi/v/climb-ai?color=blue)](https://pypi.org/project/climb-ai/) -->
-<!-- [![Downloads](https://static.pepy.tech/badge/climb-ai)](https://pepy.tech/project/climb-ai) -->
-
-[![arXiv](https://img.shields.io/badge/arXiv-2301.12260-b31b1b.svg)](http://arxiv.org/abs/2410.03736)
-[![slack](https://img.shields.io/badge/chat-on%20slack-purple?logo=slack)](https://join.slack.com/t/vanderschaarlab/shared_invite/zt-1u2rmhw06-sHS5nQDMN3Ka2Zer6sAU6Q)
-<!-- exclude_docs_end -->
-
 # <img src="docs/assets/climb-logo-no-text.png" height=25> CliMB-DC
 
 This repository contains **CliMB-DC**, a Data-Centric copilot system that builds upon the [CliMB](https://github.com/vanderschaarlab/climb) ecosystem.
@@ -63,6 +48,21 @@ Hence the core of CliMB-DC can be used under the Apache-2.0 license while the to
 ---
 
 *Below you can find the content of the original README.md file for the CliMB system.*
+
+<!-- CliMB README.md -->
+
+<!-- exclude_docs -->
+[![Documentation Status](https://readthedocs.org/projects/climb-ai/badge/?version=latest)](https://climb-ai.readthedocs.io/en/latest/?badge=latest)
+[![YouTube](https://img.shields.io/badge/YouTube-%23FF0000.svg?logo=YouTube&logoColor=white)](https://www.youtube.com/watch?v=76XuR0K3F5Y)
+
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/release/python-370/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE.txt)
+<!-- [![PyPI-Server](https://img.shields.io/pypi/v/climb-ai?color=blue)](https://pypi.org/project/climb-ai/) -->
+<!-- [![Downloads](https://static.pepy.tech/badge/climb-ai)](https://pepy.tech/project/climb-ai) -->
+
+[![arXiv](https://img.shields.io/badge/arXiv-2301.12260-b31b1b.svg)](http://arxiv.org/abs/2410.03736)
+[![slack](https://img.shields.io/badge/chat-on%20slack-purple?logo=slack)](https://join.slack.com/t/vanderschaarlab/shared_invite/zt-1u2rmhw06-sHS5nQDMN3Ka2Zer6sAU6Q)
+<!-- exclude_docs_end -->
 
 # <img src="docs/assets/climb-logo-no-text.png" height=25> CliMB
 
