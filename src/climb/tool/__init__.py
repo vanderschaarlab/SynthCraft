@@ -22,6 +22,7 @@ from .impl.tool_feature_selection import BorutaFeatureSelection
 from .impl.tool_hardware import HardwareInfo
 from .impl.tool_imputation import HyperImputeImputation, HyperImputeImputationTrainTest
 from .impl.tool_paper import UploadAndSummarizeExamplePaper
+from .impl.tool_smart_testing import SmartTesting
 from .impl.tool_upload import UploadDataFile, UploadDataMultipleFiles
 from .tool_comms import ToolCommunicator, ToolOutput, ToolReturnIter
 from .tools import ToolBase, UserInputRequest
@@ -89,6 +90,7 @@ _AVAILABLE_TOOLS_LIST = [
     DataSuiteInsights(),
     BalanceData(),
     FeatureExtractionFromText(),
+    SmartTesting(),
 ]
 
 if check_extra_available():

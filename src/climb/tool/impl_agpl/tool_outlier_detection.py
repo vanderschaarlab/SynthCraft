@@ -81,18 +81,6 @@ def cleanlab_outlier_detection(
             f"`task_type` must be 'classification' or 'survival_analysis'. Cleanlab does not support {task_type}."
         )
 
-    if task_type == "survival_analysis":
-        raise NotImplementedError("Survival analysis case is not yet supported.")
-        # # convert to classification using time horizon
-        # time_horizon = df[time_variable].median()
-        # df["TEMP_CLASSIFICATION_FROM_SURVIVAL_EVENT_COL"] = np.where(
-        #     (df[time_variable] < time_horizon) & (df[target_column] == 1), 1, 0
-        # )
-        # df.drop(time_variable, axis=1, inplace=True)
-        # df.drop(target_column, axis=1, inplace=True)
-        # # change target column to the new classification column
-        # target_column = "TEMP_CLASSIFICATION_FROM_SURVIVAL_EVENT_COL"
-        # task_type = "classification"
 
     # Get the data and target variable
     tc.print("Loading the data...")
@@ -100,6 +88,20 @@ def cleanlab_outlier_detection(
     data_file_path = workspace / data_file_path
     cleaned_file_path = workspace / cleaned_file_path
     df = pd.read_csv(data_file_path)
+    
+    # Convert to classification using time horizon for the sake of the tool
+    if task_type == "survival_analysis":
+        # convert to classification using time horizon
+        time_horizon = df[time_variable].median()
+        df["TEMP_CLASSIFICATION_FROM_SURVIVAL_EVENT_COL"] = np.where(
+            (df[time_variable] < time_horizon) & (df[target_column] == 1), 1, 0
+        )
+        df.drop(time_variable, axis=1, inplace=True)
+        df.drop(target_column, axis=1, inplace=True)
+        # change target column to the new classification column
+        target_column = "TEMP_CLASSIFICATION_FROM_SURVIVAL_EVENT_COL"
+        task_type = "classification"
+
     df = clean_dataframe(df)
     X = df.drop(columns=[target_variable]).values  # noqa: F841
     y = df[target_variable].values  # noqa: F841
