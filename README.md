@@ -33,8 +33,10 @@ It is not compatible with the [Apache-2.0 license](https://choosealicense.com/li
 If you wish to use the extra tools provided in the `impl_agpl` directory, you must explicitly install the `[extra]` version of CliMB-DC like so:
 
 ```bash
-git clone https://github.com/vanderschaarlab/climb.git
+# Clone the *CliMB-DC* repository.
+git clone https://github.com/DrShushen/climb-dc.git
 cd climb
+# Install with the `[extra]` option.
 pip install -e climb[extra]
 ```
 
