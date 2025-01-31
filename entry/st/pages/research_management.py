@@ -168,6 +168,14 @@ st.write("")
 st.write("")
 st.markdown("#### 🕹️ Start a new session")
 st.write("")
+st.info(
+    """
+    **CliMB** currently supports the following classes of OpenAI models:
+    - `gpt-4o`, `gpt-4-turbo`: **recommended** as they good reasoning capabilities.
+    - `gpt-4o-mini`, `gpt-3.5-turbo`: **not** recommended as they are less capable and are more likely to \
+lead to substandard results.
+    """
+)
 
 col1b, col2b = st.columns(2)
 with col1b:
