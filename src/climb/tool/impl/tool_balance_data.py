@@ -1,9 +1,10 @@
 import os
 from collections import Counter
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
 
 import pandas as pd
-from imblearn.over_sampling import SMOTE, RandomOverSampler
+from sklearn.preprocessing import LabelEncoder
+from imblearn.over_sampling import SMOTENC, RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 
 from ..tool_comms import ToolCommunicator, ToolReturnIter, execute_tool
@@ -31,7 +32,21 @@ def compute_sampling_strategy(y, method, desired_ratio=1.0):
     return sampling_strategy
 
 
-def clean_dataframe(df, unique_threshold=15):
+def clean_dataframe(df: pd.DataFrame, unique_threshold: int = 15):
+    """
+    Cleans the dataframe by encoding categorical variables, handling missing values, and converting data types.
+
+    Parameters:
+    - df (pd.DataFrame): The input dataframe to clean.
+    - unique_threshold (int): Threshold to decide if a numerical column should be treated as categorical.
+
+    Returns:
+    - df_cleaned (pd.DataFrame): The cleaned dataframe.
+    - encoders (dict): Dictionary of LabelEncoders for categorical columns.
+    """
+    # Initialize encoders
+    encoders = {}
+
     # Identify column data types
     inferred_categorical_columns = []
     inferred_numerical_columns = []
@@ -49,35 +64,38 @@ def clean_dataframe(df, unique_threshold=15):
             inferred_numerical_columns.append(col)
         else:
             # Handle mixed or unexpected data types
-            try:
-                df[col] = pd.to_numeric(df[col], errors="coerce")
-                inferred_numerical_columns.append(col)
-            except ValueError:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+            if df[col].isnull().all():
                 inferred_categorical_columns.append(col)
+            else:
+                inferred_numerical_columns.append(col)
 
     numerical_columns = [
         col
         for col in inferred_numerical_columns
-        if col not in inferred_categorical_columns and col not in inferred_boolean_columns
+        if col not in inferred_categorical_columns
+        and col not in inferred_boolean_columns
     ]
     categorical_columns = inferred_categorical_columns
     boolean_columns = inferred_boolean_columns
 
-    # Convert categorical columns to category indices
+    # Convert categorical columns using LabelEncoder
     for col in categorical_columns:
-        df[col] = pd.Categorical(df[col]).codes
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col].fillna('Missing'))
+        encoders[col] = le
 
     # Clean numerical columns
     for col in numerical_columns:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-        # Handle missing values - example: fill with the median
+        # Handle missing values - fill with the median
         df[col] = df[col].fillna(df[col].median())
 
     # Convert boolean columns to integers
     for col in boolean_columns:
         df[col] = df[col].astype(int)
 
-    return df
+    return df, encoders
 
 
 def balance_data(
@@ -86,7 +104,7 @@ def balance_data(
     balanced_data_file_path: str,
     target_column: str,
     method: str,
-    sampling_strategy: str,
+    sampling_strategy: Optional[Union[str, float, Dict]],
     desired_ratio: float,
     workspace: str,  # pylint: disable=unused-argument
 ) -> None:
@@ -97,7 +115,7 @@ def balance_data(
         data_file_path (str): The path to the input CSV file.
         balanced_data_file_path (str): The path to the output CSV file with balanced data.
         method (str): The balancing method to use. Options are 'over' for oversampling, 'under' for \
-            undersampling, and 'smote' for SMOTE.
+            undersampling, 'smote' for SMOTE, and 'combine' for combining under-sampling and SMOTE.
         sampling_strategy (str): The sampling strategy to use. Options are:
             - 'minority' to balance the minority class,
             - 'not minority' to balance all classes except the minority class,
@@ -110,42 +128,120 @@ def balance_data(
     """
     # Load the data
     df = pd.read_csv(data_file_path)
-    df = clean_dataframe(df)
 
-    X = df.drop(columns=[target_column])
-    y = df[target_column]
+    df_original = df.copy()
+
+    # Clean a separate copy of the data for re-balancing
+    df_cleaned, encoders = clean_dataframe(df.copy())
+
+    X_cleaned = df_cleaned.drop(columns=[target_column])
+    y_cleaned = df_cleaned[target_column]
 
     if sampling_strategy is None:
-        sampling_strategy = compute_sampling_strategy(y, method=method, desired_ratio=desired_ratio)
+        sampling_strategy = compute_sampling_strategy(
+            y_cleaned, method=method, desired_ratio=desired_ratio
+        )
+        tc.print(f"Computed sampling strategy: {sampling_strategy}")
+    else:
+        tc.print(f"Using provided sampling strategy: {sampling_strategy}")
+    
+    # Identify categorical feature indices for SMOTENC
+    categorical_features = [i for i, col in enumerate(X_cleaned.columns) if col in encoders]  # Identify categorical feature indices for SMOTENC
 
     if method == "smote":
-        sampler = SMOTE(sampling_strategy=sampling_strategy)
+        sampler = SMOTENC(
+            sampling_strategy=sampling_strategy,
+            categorical_features=categorical_features,
+            random_state=42,
+        )
     elif method == "oversample":
         sampler = RandomOverSampler(sampling_strategy=sampling_strategy)
     elif method == "undersample":
         sampler = RandomUnderSampler(sampling_strategy=sampling_strategy)
     elif method == "combine":
         # First, apply under-sampling, then apply SMOTE
-        X, y = RandomUnderSampler(sampling_strategy=0.5).fit_resample(X, y)
-        sampler = SMOTE(sampling_strategy=sampling_strategy)
+        undersampler = RandomUnderSampler(
+            sampling_strategy=sampling_strategy.get("undersample", 0.5),
+            random_state=42,
+        )
+        sampler = SMOTENC(
+            sampling_strategy=sampling_strategy.get("smote", "auto"),
+            categorical_features=categorical_features,
+            random_state=42,
+        )
     else:
-        raise ValueError("Invalid method. Choose from 'smote', 'oversample', 'undersample', or 'combine'.")
+        raise ValueError(
+            "Invalid method. Choose from 'smote', 'oversample', 'undersample', or 'combine'."
+        )
 
-    X_resampled, y_resampled = sampler.fit_resample(X, y)
+    # Apply the sampler on the cleaned data
+    tc.print("Applying the re-balancing algorithm...")
+    if method == "combine":
+        # First apply undersampling, then SMOTENC
+        X_under, y_under = undersampler.fit_resample(X_cleaned, y_cleaned)
+        X_resampled, y_resampled = sampler.fit_resample(X_under, y_under)
+    else:
+        X_resampled, y_resampled = sampler.fit_resample(X_cleaned, y_cleaned)
 
     tc.print(f"Balanced class distribution: {Counter(y_resampled)}")
 
-    X_resampled_df = pd.DataFrame(X_resampled, columns=X.columns)
-    y_resampled_df = pd.DataFrame(y_resampled, columns=[target_column])
-    # Combine features and target into a single DataFrame
-    balanced_df = pd.concat([X_resampled_df, y_resampled_df], axis=1)
+    # Initialize DataFrame for balanced data
+    df_balanced = pd.DataFrame(X_resampled, columns=X_cleaned.columns)
+    df_balanced[target_column] = y_resampled
 
-    balanced_df.to_csv(balanced_data_file_path, index=False)
+    # Inverse transform categorical columns
+    if method in ["smote", "combine"]:
+        # Calculate number of synthetic samples
+        num_original = len(X_cleaned)
+        num_resampled = len(X_resampled)
+        num_synthetic = num_resampled - num_original
 
+        if num_synthetic > 0:
+
+            # Extract synthetic samples
+            synthetic_X = X_resampled[-num_synthetic:]
+            synthetic_y = y_resampled[-num_synthetic:]
+
+            # Create DataFrame for synthetic samples
+            synthetic_df = pd.DataFrame(synthetic_X, columns=X_cleaned.columns)
+            synthetic_df[target_column] = synthetic_y
+
+            # Inverse transform categorical columns in synthetic samples
+            for col, le in encoders.items():
+                # Ensure synthetic samples have integer values for categorical columns
+                synthetic_df[col] = synthetic_df[col].round().astype(int)
+                # Handle potential out-of-range values by clipping
+                synthetic_df[col] = synthetic_df[col].clip(0, len(le.classes_) - 1)
+                synthetic_df[col] = le.inverse_transform(synthetic_df[col])
+
+            # Append synthetic samples to the original dataset
+            df_balanced_final = pd.concat([df_original, synthetic_df], ignore_index=True)  # Concatenate synthetic samples with original data
+        else:
+            # No synthetic samples were generated
+            tc.print("No synthetic samples were generated.")
+            df_balanced_final = df_original.copy()
+    else:
+        # For 'oversample' and 'undersample', inverse transform categorical columns
+        for col, le in encoders.items():  # Inverse transform categorical features
+            df_balanced[col] = le.inverse_transform(df_balanced[col].astype(int))
+
+        # Set balanced data as resampled data
+        df_balanced_final = df_balanced
+
+    tc.print("Saving the balanced data...")
+    df_balanced_final.to_csv(balanced_data_file_path, index=False)
+
+    # Log the results
     tc.set_returns(
         tool_return=(
-            f"Dataset has been balanced." f"The new balanced dataset has been saved to {balanced_data_file_path}"
+            f"Dataset has been balanced using '{method}' method. "
+            f"The balanced dataset has been saved to {balanced_data_file_path}."
         ),
+        user_report=[
+            "📊 **Data Balancing**",
+            f"Resampled class distribution: {Counter(y_resampled)}",
+            f"Balanced data saved to: {balanced_data_file_path}",
+        ],
         files_in=[os.path.basename(data_file_path)],
         files_out=[os.path.basename(balanced_data_file_path)],
     )
@@ -241,6 +337,7 @@ When to Use:
                         "data_file_path",
                         "balanced_data_file_path",
                         "method",
+                        "target_column",
                         "sampling_strategy",
                         "desired_ratio",
                     ],

@@ -222,7 +222,7 @@ it is clear from the filenames, suggest this to the user and ask for confirmatio
 - If there is no unique key, ask if one can be created by creating a unique combination of columns.
 will help them figure it out. Columns can have different names in different files, so you may need to \
 confirm whether similar columns names refer to the same column across the files, make you best guess and suggest column matches if the user is unsure.
-- Generate code to merge the files into a single training dataset (and a single test dataset if applicable), with an inner join. This should be done \
+- Generate code to merge the files into a single training dataset (and a single test dataset if applicable). The first attempt to merge should be an inner join. This should be done \
 using the unique key or combination of columns.
 - Save the merged datasets with the suffix `_merged` in the filename.
 - Generate code to sense check the merged datasets to ensure that the merge was successful, using the following checks:
