@@ -222,7 +222,10 @@ it is clear from the filenames, suggest this to the user and ask for confirmatio
 - If there is no unique key, ask if one can be created by creating a unique combination of columns.
 will help them figure it out. Columns can have different names in different files, so you may need to \
 confirm whether similar columns names refer to the same column across the files, make you best guess and suggest column matches if the user is unsure.
-- Generate code to merge the files into a single training dataset (and a single test dataset if applicable). The first attempt to merge should be an inner join. This should be done \
+- Generate code to print the columns names from both files. Look at these and suggest to the user which columns \
+could contain the same information under different names and therefore should be matched. Ask the user to confirm the matches.
+- Generate code to re-name the matched columns to the same name in both files and then merge the files into a single training \
+dataset (and a single test dataset if applicable). The first attempt to merge should be an inner join. This should be done \
 using the unique key or combination of columns.
 - Save the merged datasets with the suffix `_merged` in the filename.
 - Generate code to sense check the merged datasets to ensure that the merge was successful, using the following checks:
@@ -1147,26 +1150,26 @@ outcomes of previous tasks or episodes.
 
 PLAN = [
     "ENV_1",
-    "DP-F_1",
+    # "DP-F_1",
     "ENV_2",
     "ENV_3",
     "INFO_1",
-    "INFO_2",
-    "INFO_3",
-    "EDA_1",
-    "EDA_2",
-    "EDA_3",
-    "EDA_4",
-    "EDA_5",
-    "DP-F_2",
-    "DP-BM_1",
-    "DP-M_1",
-    "DP-M_2",
-    "DP-M_3",
-    "DP-M_4",
-    "DP-AM_1",
-    "DP-AM_2",
-    "DP-AM_3",
+    # "INFO_2",
+    # "INFO_3",
+    # "EDA_1",
+    # "EDA_2",
+    # "EDA_3",
+    # "EDA_4",
+    # "EDA_5",
+    # "DP-F_2",
+    # "DP-BM_1",
+    # "DP-M_1",
+    # "DP-M_2",
+    # "DP-M_3",
+    # "DP-M_4",
+    # "DP-AM_1",
+    # "DP-AM_2",
+    # "DP-AM_3",
     "DP-AM_4",
     "DP-AM_5",
     "DP-AM_6",
