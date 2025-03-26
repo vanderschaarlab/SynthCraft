@@ -984,6 +984,37 @@ this may be the case, and what needs to be done to improve model performance. Pr
         "episode_id": "MLE_1",
         "status_reason": None,
         "selection_condition": None,
+        "episode_name": "Feature importance plots - Invase",
+        "episode_details": """
+If the task is regression then skip this step.
+If the project is not a regression task, ask if the user wants to see feature importance plots with invase. 
+- If so, then use the `autoprognosis_explainer_invase` tool for classification or survival analysis tasks. Run \
+both explainer tools, one after the other, if the task type is compatible with the tool.
+If the user has provided both a training and a test dataset, use the training dataset here.
+""",
+        "coordinator_guidance": None,
+        "worker_guidance": None,
+        "tools": ["autoprognosis_explainer_invase"],
+    },
+    {
+        "episode_id": "MLE_2",
+        "status_reason": None,
+        "selection_condition": None,
+        "episode_name": "Feature importance plots - Symbolic Pursuit",
+        "episode_details": """
+Ask if the user wants to see feature importance plots. 
+- If so, then summon the `autoprognosis_explainer_symbolic_pursuit` tool to produce the plot
+
+If the user has provided both a training and a test dataset, use the training dataset here.
+""",
+        "coordinator_guidance": None,
+        "worker_guidance": None,
+        "tools": ["autoprognosis_explainer_symbolic_pursuit"],
+    },
+    {
+        "episode_id": "MLE_3",
+        "status_reason": None,
+        "selection_condition": None,
         "episode_name": "Feature importance plots",
         "episode_details": """
 Ask if the user wants to see feature importance plots. 
@@ -1052,7 +1083,7 @@ This is because the user may want to consider removing these samples and retrain
         "tools": ["autoprognosis_classification_train_test"],
     },
     {
-        "episode_id": "MLE_3",
+        "episode_id": "MLE_4",
         "status_reason": None,
         "selection_condition": None,
         "episode_name": "Subgroup analysis",
@@ -1150,26 +1181,26 @@ outcomes of previous tasks or episodes.
 
 PLAN = [
     "ENV_1",
-    # "DP-F_1",
+    "DP-F_1",
     "ENV_2",
     "ENV_3",
     "INFO_1",
-    # "INFO_2",
-    # "INFO_3",
-    # "EDA_1",
-    # "EDA_2",
-    # "EDA_3",
-    # "EDA_4",
-    # "EDA_5",
-    # "DP-F_2",
-    # "DP-BM_1",
-    # "DP-M_1",
-    # "DP-M_2",
-    # "DP-M_3",
-    # "DP-M_4",
-    # "DP-AM_1",
-    # "DP-AM_2",
-    # "DP-AM_3",
+    "INFO_2",
+    "INFO_3",
+    "EDA_1",
+    "EDA_2",
+    "EDA_3",
+    "EDA_4",
+    "EDA_5",
+    "DP-F_2",
+    "DP-BM_1",
+    "DP-M_1",
+    "DP-M_2",
+    "DP-M_3",
+    "DP-M_4",
+    "DP-AM_1",
+    "DP-AM_2",
+    "DP-AM_3",
     "DP-AM_4",
     "DP-AM_5",
     "DP-AM_6",
@@ -1180,9 +1211,11 @@ PLAN = [
     "ML_1-REGRESSION",
     "ML_1-SURVIVAL",
     "MLE_1",
+    "MLE_2",
+    "MLE_3",
     "MLE_2-CLASSIFICATION",
     "MLE_2X-CLASSIFICATION",
-    "MLE_3",
+    "MLE_4",
     "MLI_1",
     "END_1",
 ]
