@@ -360,6 +360,7 @@ def filter_out_lines(in_str: str) -> str:
         "The least populated class in y has only 1 members",
         "RuntimeWarning:",
         "divide by zero encountered",
+        "'multi_class' was deprecated"
     ]
     lines = in_str.split("\n")
     return "\n".join([line for line in lines if not any([filt in line for filt in FILTERS])])

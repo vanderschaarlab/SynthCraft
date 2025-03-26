@@ -1,3 +1,4 @@
+import ast
 import copy
 import re
 from dataclasses import dataclass
@@ -5,11 +6,9 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import pydantic
 import rich.pretty
-import rich.prompt
 
 from climb.common import (
     Agent,
-    EngineParameter,
     EngineState,
     KeyGeneration,
     Message,
@@ -18,7 +17,7 @@ from climb.common import (
     ToolSpecs,
     UIControlledState,
 )
-from climb.common.utils import check_extra_available, d2m, engine_log, m2d, update_templates
+from climb.common.utils import d2m, engine_log, m2d, update_templates
 from climb.db import DB
 from climb.tool import list_all_tool_names, list_all_tool_specs
 
@@ -44,31 +43,7 @@ DEBUG__PRINT_TOOLS = False
 # ---
 DEBUG__PRINT_DELTA = False
 # ---
-DEBUG__USE_FILTER_TOOLS = True  # Only True is supported in this engine.
-# ---
-DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET = False
-
-if DEBUG__USE_FILTER_TOOLS is False:
-    raise RuntimeError("DEBUG__USE_FILTER_TOOLS must be True for this engine.")
-
-# region: === TOOL SETS ===
-TOOL_SETS = ["default", "full"]
-
-if check_extra_available():
-    TOOL_SETS.append("extra")
-
-ToolSetParameter = EngineParameter(
-    name="tool_set",
-    description=(
-        # TODO: Add more information.
-        "The set of tools to be used by the engine."
-    ),
-    kind="enum",
-    enum_values=TOOL_SETS,
-    default="default",
-)
-
-# endregion
+DEBUG__USE_FILTER_TOOLS = True  # If False, the worker will always be given all tools.
 
 # region: === Prompt templates ===
 
@@ -199,61 +174,15 @@ EPISODE_DB = [
 - Ask the user if they have their data file(s) ready as a CSV file. Explain briefly what a training dataset and a test \
 dataset are. Tell the user that they have to upload their training dataset, and they can also upload a test dataset if \
 they have it.
-- Ask the user if their datasets are spread across multiple files. Explain that if they are, we can handle merging them \
-into a single train or test dataset. Ask them to upload all the relevant files they have.
 - Wait for user response.
 - If the user has files ready, proceed to summoning the tool. Otherwise, STOP the task.
 - Then summon the `upload_data_multiple_files` tool so that the user can upload their data file(s).
-- Finally, confirm with the user which file(s) are the training dataset and which are the test dataset (if applicable). If \
+- Finally, confirm with the user which file is the training dataset and which is the test dataset (if applicable). If \
 it is clear from the filenames, suggest this to the user and ask for confirmation.
 """,
         "coordinator_guidance": None,
-        "worker_guidance": "Do no process the data files in any way during this step. We will handle that in the next steps.",
+        "worker_guidance": None,
         "tools": ["upload_data_multiple_files"],
-    },
-    {
-        "episode_id": "DP-F_1",
-        "selection_condition": None,
-        "status_reason": None,
-        "episode_name": "Merge multiple data files",
-        "episode_details": """
-- If there are multiple files for the training and/or test dataset, tell the user that you will have to merge them into a single file now.
-- Ask if there is a unique key that can be used to merge the files. Tell the user it is OK to be unsure, and that you \
-- If there is no unique key, ask if one can be created by creating a unique combination of columns.
-will help them figure it out. Columns can have different names in different files, so you may need to \
-confirm whether similar columns names refer to the same column across the files, make you best guess and suggest column matches if the user is unsure.
-- Generate code to print the columns names from both files. Look at these and suggest to the user which columns \
-could contain the same information under different names and therefore should be matched. Ask the user to confirm the matches.
-- Generate code to re-name the matched columns to the same name in both files and then merge the files into a single training \
-dataset (and a single test dataset if applicable). The first attempt to merge should be an inner join. This should be done \
-using the unique key or combination of columns.
-- Save the merged datasets with the suffix `_merged` in the filename.
-- Generate code to sense check the merged datasets to ensure that the merge was successful, using the following checks:
-    - show the number of rows lost in the merge. i.e. the number of rows in the largest of the original datasets minus the number of rows in the merged dataset.
-    - show the number of NaN values introduced in the merge.
-
-- Ask the user to confirm that the merge was successful, by reviewing the ``_merged.csv` file in the working directory tab.
-- If not successful, ask the user to provide more information to help resolve the issue and re-run the merge according to the feedback.
-- When the merge is successful, proceed to the next step.
-""",
-        "coordinator_guidance": None,
-        "worker_guidance": """
-- You MUST NEVER skip this step if the user has multiple files for either the training and/or test dataset.
-- You MUST NOT use any tool here. DO NOT SUMMON ANY TOOLS.
-- You MUST generate code in this step!
-- So, your response MUST have:
-DEPENDENCIES:
-```
-pandas
-```
-CODE:
-```
-... your code to complete the episode ...
-```
-
-- If the user has provided both a training and a test dataset files, you must check *both*.
-""",
-        "tools": [],
     },
     {
         "episode_id": "ENV_2",
@@ -374,12 +303,8 @@ achieve the same columns in both datasets. IF this is not possible STOP the task
 
 2. Ask the user if they would like to exclude certain columns from the analysis, or conversely, only keep certain columns. \
 If so, find out which columns these are. Then generate code to drop the columns that the user wants to exclude or to \
-only keep the columns that the user wants to keep. If the user provides no preference, do NOT make any changes at this step. \
-Save the modified dataset(s) with the suffix `_user_cols` in the \
+only keep the columns that the user wants to keep. Save the modified dataset(s) with the suffix `_user_cols` in the \
 filename.
-
-3. If you did any column exclusion, confirm with the user that there are no more columns to exclude. If so, finish the \
-task, otherwise, work with the user to finalize column removal.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
@@ -406,8 +331,6 @@ PROVIDE it to the tool unless definitely not possible.
 - After executing the tool, provide the user with a summary of what you see in the EDA. Use your best understanding of \
 data science and machine learning. **DO NOT** make suggestions of what needs to be done next! That will be handled \
 later in the process. **Just summarize your learnings.**
-- Ask the user if they want to discuss the EDA results. If they do, answer their questions as needed. DO NOT make \
-any modifications to the data at this stage, as that will be handled later in the process.
 """,
         "tools": ["EDA"],
     },
@@ -444,7 +367,7 @@ best understanding of medical research and data science.
         "episode_name": "Warn about small sample size if necessary",
         "episode_details": """
 ONLY IF there are fewer than about 50 samples, warn the user that the results may not be reliable as there is not \
-enough data. Allow to continue if the user is happy with that. SKIP this step DIRECTLY and COMPLETELY if there are more than \
+enough data. Allow to continue if the user is happy with that. Skip this step completely if there are more than \
 50 samples.
 
 Note: this refers to the number of samples in the training dataset.
@@ -461,18 +384,17 @@ Note: this refers to the number of samples in the training dataset.
         "episode_details": """
 Reminder: this task is only relevant if the user's problem is SURVIVAL ANALYSIS.
 
-- Ask the user if they would like to see a Kaplan-Meier plot for the survival analysis. If yes, do the following:
-    1. Make sure that you know exactly which column represents the time to the event and which column represents the event.
-    2. Generate code to show the Kaplan-Meier plot. Hint: use the `lifelines` library.
-    3. Show the plot to the user.
-- If they do NOT want this, SKIP this step.
+- Ask the user if they would like to see a Kaplan-Meier plot for the survival analysis. If yes:
+- Make sure that you know exactly which column represents the time to the event and which column represents the event.
+- Generate code to show the Kaplan-Meier plot. Hint: use the `lifelines` library.
+- Show the plot to the user.
 
-Do this for the training dataset. If the user also provided a test dataset, ask them if they would like to see \
+Do this this for the training dataset. If the user also provided a test dataset, ask them if they would like to see \
 the plot for the test dataset as well and repeat the process if they do.
 """,
         "coordinator_guidance": """
-Review the conversation history to see if the user's task is likely to be survival analysis. If it seems like it is and the user would like to see it, \
-you MUST issue this episode, do NOT skip it in that case! If the user do NOT want this, SKIP this.
+Review the conversation history to see if the user's task is likely to be survival analysis. If it seems like it is, \
+you MUST issue this episode, do NOT skip it in that case!
 """,
         "worker_guidance": """
 Important:
@@ -483,7 +405,7 @@ confirm this), show it to the user using the `<WD>/image_name.extension` format 
         "tools": [],
     },
     {
-        "episode_id": "DP-F_2",
+        "episode_id": "DP-F_1",
         "status_reason": None,
         "selection_condition": None,
         "episode_name": "Free text field data extraction",
@@ -519,7 +441,7 @@ The column names are those confirmed as free text fields by the user. The topics
 interested in extracting into categorical columns. For the list of synonyms, you should create a list of the top ten terms \
 that you think are most likely to appear in the text and are related to the topic.
 
-NOTE: You MUST make the most comprehensive list of synonyms. Make sure to include the shortest feasible version of each synonym \
+NOTE: You MUST make the most comprhensive list of synonyms. Make sure to include the shortest feasible version of each synonym \
 that is specific to the topic. For example, if the topic is "treatment", the synonyms should be "treatment", "treat", "therapy", \
 etc. NOT "medical treatment", "drug therapy", etc.
 NOTE: You MUST NOT ask the user to suggest the synonyms. You MUST use your best judgment to determine the most appropriate \
@@ -673,8 +595,8 @@ The worker may have many things to do here, to satisfy the user needs.
         "worker_guidance": """
 ###### User interaction:
 - **IMPORTANT:** You MUST keep asking the user if they have any MORE preprocessing steps in mind. The user may \
-want to do multiple things here! You must keep asking until the user says (1) they are finished or (2) they do not have any \
-more preprocessing steps in mind or (3) they want to go on. Only then can you proceed to the next episode (if any).
+want to do multiple things here! You must keep asking until the user says they are finished and do not have any \
+more preprocessing steps in mind. Only then can you proceed to the next episode (if any).
 ###### Data:
 - **IMPORTANT:** You must work from the latest version of the dataset, after missing data handling!
 - **IMPORTANT:** If the user has provided both a training and a test dataset, you must ensure that whatever \
@@ -691,14 +613,13 @@ use the test dataset to inform the preprocessing steps on the training dataset -
         "episode_details": """
 - Describe to the user what the `feature_selection` tool does and what it's useful for.
 - Ask the user if they want to use this tool to select the most important features in the dataset.
-- **IMPORTANT** Only if the user says YES, summon the `feature_selection` tool. If NOT, SKIP this step.
+- Only if the user says yes, summon the `feature_selection` tool, otherwise skip this step.
 - Use the `feature_selection` tool to find the most important features in the dataset.
 - Suggest to the user that they may want to further drop some or all features that are not in the list of important \
 features,as it can help simplify the task and improve the performance of machine learning models.
 - List the features that are selected as important and the features that are not important. Ask the user if they \
 would like to drop any of the unimportant features.
 - If so, generate code to do this.
-- If not, keep all features and go on.
 - Save this modified dataset with a suffix `_selected_features` in the filename.
 """,
         "coordinator_guidance": None,
@@ -755,7 +676,7 @@ If no, ask them if they would like to revert to using the dataset they had befor
         "coordinator_guidance": None,
         "worker_guidance": """
 **IMPORTANT**
-If the task is survival analysis, then you must do the following BEFORE running the feature selection tool:
+If the task is survival analysis, the you must do the following BEFORE running the feature selection tool:
 1. Confirm what is the TIME variable (the variable that has the time index representing event time)
 2. Confirm what is the EVENT variable (the variable that represents the event itself, usually binary)
 Do NOT remove these columns in the feature selection step!
@@ -769,12 +690,12 @@ and once for the test dataset.
         "episode_id": "DP-AM_5",
         "status_reason": None,
         "selection_condition": None,
-        "episode_name": "Balance the dataset",
+        "episode_name": "Balanace the dataset",
         "episode_details": """
 - Describe to the user what the `balance_data` tool does and what it's useful for.
 - Generate code to show the user the class distribution of the target variable.
 - Ask the user if they want to better balance the dataset by oversampling or undersampling the classes, \
-making sure to explain why this can be beneficial for the model.
+    making sure to explain why this can be beneficial for the model.
 - If no, skip the rest of this episode. If yes, provide information about the different options for \
 balancing the data (Undersampling, Oversampling, SMOTE, and Combine). Describe when each method is best suitable.
 - Recommend which method is best given the class distribution of the target variable calculated earlier.
@@ -911,9 +832,8 @@ are a problem and suggest removing them. Example:
 NOTE: If there are no such columns, explicitly state that you do not suspect any irrelevant columns, but ask the user to double check this.
 NOTE: Since you might not have picked up all the irrelevant columns, always ask the user to double-check whether they think there are any others.
 - (2) If the user wants to exclude any of the columns discussed, GENERATE THE CODE to do so STRAIGHT AWAY. This cannot be done later!
-- (3) If the user wants to keep all columns or go on, you MUST SKIP this.
 
-(4) Finally, list the feature columns that are left, and check that the user is happy to use all of these features \
+(3) Finally, list the feature columns that are left, and check that the user is happy to use all of these features \
 in the machine learning study. This is to make it clear to the user what features we are going to use and serves as \
 a final check.
 """,
@@ -942,7 +862,7 @@ After the study is done, ask the user if they want to also try using linear mode
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
-**IMPORTANT NOTE**: You MUST INVOKE the tool rather than writing your own code for this step.
+NOTE: You must invoke the tool rather than writing your own code for this step.
 
 If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why \
 this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
@@ -960,7 +880,7 @@ After the study is done, ask the user if they want to also try using linear mode
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
-**IMPORTANT NOTE**: You MUST INVOKE the tool rather than writing your own code for this step.
+NOTE: You must invoke the tool rather than writing your own code for this step.
 
 If you receive an error that a minimum performance threshold was not met, suggest to the user the reasons as to why \
 this may be the case, and what needs to be done to improve model performance. Provide advice SPECIFIC to the user's case.
@@ -973,7 +893,7 @@ this may be the case, and what needs to be done to improve model performance. Pr
         "selection_condition": "Only if the ML problem is SURVIVAL ANALYSIS",
         "episode_name": "Machine learning study - survival analysis",
         "episode_details": """
-**IMPORTANT NOTE**: You MUST INVOKE the tool rather than writing your own code for this step.
+NOTE: You must invoke the tool rather than writing your own code for this step.
 
 Perform a machine learning study using the `autoprognosis_survival_train_test` tool. Set the `mode` parameter to "all".
 After the study is done, ask the user if they want to also try using linear models only. If so, then set the `mode` parameter to "linear" and run the tool again.
@@ -991,11 +911,9 @@ this may be the case, and what needs to be done to improve model performance. Pr
         "selection_condition": None,
         "episode_name": "Feature importance plots",
         "episode_details": """
-Ask if the user wants to see feature importance plots. 
-- If so, then generate these with the `shap_explainer` tool \
+Ask if the user wants to see feature importance plots. If so, then generate these with the `shap_explainer` tool \
 for regression or classification tasks, and use the `permutation_explainer` tool for survival analysis tasks. It \
 is CRITICAL to ALWAYS select `permutation_explainer` for survival tasks.
-- If NOT, you MUST SKIP this
 
 If the user has provided both a training and a test dataset, use the training dataset here.
 """,
@@ -1010,54 +928,35 @@ If the user has provided both a training and a test dataset, use the training da
         "episode_name": "Insights on classification",
         "episode_details": """
 If the task is a CLASSIFICATION task, ask if the user wants to see insights about which samples were \
-hard/easy/ambiguous to classify.
-- If SO, then generate these with the `dataiq_insights` tool.
-- If NOT, skip this.
+hard/easy/ambiguous to classify, if so then generate these with the `dataiq_insights` tool.
 
 If the user has provided both a training and a test dataset, use the training dataset here.
 """,
-        "coordinator_guidance": """
-**IMPORTANT!*** If the result of the data IQ insights suggests that there are quite a few AMBIGUOUS and HARD samples, \
-you should ADD MLE_2X-CLASSIFICATION to the plan. This is because the user may want to consider removing these samples \
-and retraining the model.
-""",
+        "coordinator_guidance": None,
         "worker_guidance": None,
         "tools": ["dataiq_insights"],
     },
     {
-        "episode_id": "MLE_2X-CLASSIFICATION",
+        "episode_id": "MLE_3",
         "status_reason": None,
-        "selection_condition": "The ML task is CLASSIFICATION; Data IQ insights reveal many AMBIGUOUS/HARD samples",
-        "episode_name": "Act on ambiguous/hard samples",
+        "selection_condition": None,
+        "episode_name": "Smart testing",
         "episode_details": """
-FOLLOW ALL OF THESE STEPS IN ORDER:
-*Proceed to the next step once the previous step worked successfully.*
-1. Ask the user whether they want to remove some % of ambiguous and hard samples from the dataset.
-IF NO:
-* Complete the task here.
-IF YES:
-2. Confirm what % of ambiguous and hard samples the user wants to remove.
-3. **Generate code** to remove this % of ambiguous and hard samples from the dataset. Save the modified dataset with the \
-suffix `_filtered` in the filename. *NOTE* This must be done on the TRAINING dataset only!
-    - Generate code, do not use tools here.
-    - You can load the indices from the working directory - see Data IQ's output.
-    - Note: pickle is a python built-in library so there is no need to install it.
-4. Re-run the machine learning study with the `autoprognosis_classification_train_test` tool using the filtered dataset.
-5. Compare the performance of the model before and after removing the ambiguous and hard samples and confirm with the \
-user which model they prefer.
-
-6. FINALLY: Check with the user if they want to try filtering a different % of ambiguous and hard samples. If so, repeat \
-the process from step 2. Iterate with the user until they are happy with the results.
+- Ask the user if they are interested in understanding regions of your data where the trained model will perform poorly.
+- Describe to the user what the `smart_testing` tool does and what it's useful for.
+- If yes, use the `smart_testing` tool to generate insights into the dataset. The tool will return \
+recommendations for how to collect more data to fix the poor performing subgroups in the data set.
 """,
-        "coordinator_guidance": """
-Select this episode if the data IQ insights suggest that there are many AMBIGUOUS and HARD samples.
-This is because the user may want to consider removing these samples and retraining the model.
+        "coordinator_guidance": None,
+        "worker_guidance": """
+If the user is not interested in understanding regions of your data where a model will perform poorly, skip the rest of this step.
+If the user's task is regression or survival analysis skip this whole episode as it is only relevant for classification problems.
+- **IMPORTANT:** You must work from the latest version of the dataset, after missing data handling!
 """,
-        "worker_guidance": None,
-        "tools": ["autoprognosis_classification_train_test"],
+        "tools": ["smart_testing"],
     },
     {
-        "episode_id": "MLE_3",
+        "episode_id": "MLE_4",
         "status_reason": None,
         "selection_condition": None,
         "episode_name": "Subgroup analysis",
@@ -1155,26 +1054,25 @@ outcomes of previous tasks or episodes.
 
 PLAN = [
     "ENV_1",
-    # "DP-F_1",
     "ENV_2",
     "ENV_3",
     "INFO_1",
-    # "INFO_2",
-    # "INFO_3",
-    # "EDA_1",
-    # "EDA_2",
-    # "EDA_3",
-    # "EDA_4",
-    # "EDA_5",
-    # "DP-F_2",
-    # "DP-BM_1",
-    # "DP-M_1",
-    # "DP-M_2",
-    # "DP-M_3",
-    # "DP-M_4",
-    # "DP-AM_1",
-    # "DP-AM_2",
-    # "DP-AM_3",
+    "INFO_2",
+    "INFO_3",
+    "EDA_1",
+    "EDA_2",
+    "EDA_3",
+    "EDA_4",
+    "EDA_5",
+    "DP-F_1",
+    "DP-BM_1",
+    "DP-M_1",
+    "DP-M_2",
+    "DP-M_3",
+    "DP-M_4",
+    "DP-AM_1",
+    "DP-AM_2",
+    "DP-AM_3",
     "DP-AM_4",
     "DP-AM_5",
     "DP-AM_6",
@@ -1182,12 +1080,10 @@ PLAN = [
     "MLC_3",
     "MLC_4",
     "ML_1-CLASSIFICATION",
-    "ML_1-REGRESSION",
-    "ML_1-SURVIVAL",
     "MLE_1",
     "MLE_2-CLASSIFICATION",
-    "MLE_2X-CLASSIFICATION",
     "MLE_3",
+    "MLE_4",
     "MLI_1",
     "END_1",
 ]
@@ -2376,8 +2272,276 @@ MESSAGE_OPTIONS = {
 # region: === Engine helper functions (may be considered for moving to a separate module) ===
 
 
-def get_all_episode_ids_from_db(episodes_db: List[Dict]) -> List[str]:
-    return [ep["episode_id"] for ep in episodes_db]
+def sanity_check_structured_plan(structured_plan: List[Dict[str, Any]]) -> None:
+    # 1. Check that all tasks have unique IDs.
+    task_ids = [task["task_id"] for task in structured_plan]
+    if len(task_ids) != len(set(task_ids)):
+        raise ValueError("The structured plan contains tasks with non-unique IDs.")
+    # 2. Check that all subtasks have unique IDs.
+    subtask_ids = []
+    for task in structured_plan:
+        for subtask in task["subtasks"]:
+            subtask_ids.append(subtask["subtask_id"])
+    if len(subtask_ids) != len(set(subtask_ids)):
+        raise ValueError("The structured plan contains subtasks with non-unique IDs.")
+    # 3. Check that each task has the required keys.
+    # TODO: Add the task/subtask in the error messages for clarity.
+    for task in structured_plan:
+        for key in [
+            "task_id",
+            "task_name",
+            "project_stage",
+            "coordinator_guidance",
+            "worker_guidance",
+            "task_status",
+            "selection",
+            "selection_condition",
+            "subtasks",
+        ]:
+            if key not in task:
+                raise ValueError(f"A task is missing the key '{key}' in task '{task['task_id']}'.")
+        if task["task_status"] not in ["not_started", "in_progress", "completed"]:
+            raise ValueError("The task status of a task is not one of the allowed values.")
+        if task["selection"] not in ["mandatory", "conditional"]:
+            raise ValueError("The selection of a task is not one of the allowed values.")
+        if task["selection"] == "conditional":
+            if "selection_condition" not in task or task["selection_condition"] is None:
+                raise ValueError("A conditional task is missing the 'selection_condition' key.")
+        if not isinstance(task["subtasks"], list):
+            raise ValueError("The 'subtasks' key of a task is not a list.")
+    # 4. Check that each subtask has the required keys.
+    for task in structured_plan:
+        for subtask in task["subtasks"]:
+            for key in [
+                "subtask_id",
+                "subtask_status",
+                "status_reason",
+                "selection",
+                "selection_condition",
+                "subtask_name",
+                "subtask_details",
+                "coordinator_guidance",
+                "worker_guidance",
+                "tools",
+            ]:
+                if key not in subtask:
+                    raise ValueError(f"A subtask is missing the key '{key}' in subtask '{subtask['subtask_id']}'.")
+            if subtask["subtask_status"] not in ["not_started", "completed", "needs_redoing", "skipped"]:
+                raise ValueError("The subtask status of a subtask is not one of the allowed values.")
+            if subtask["selection"] not in ["mandatory", "conditional"]:
+                raise ValueError("The selection of a subtask is not one of the allowed values.")
+            if subtask["selection"] == "conditional":
+                if "selection_condition" not in subtask or subtask["selection_condition"] is None:
+                    raise ValueError("A conditional subtask is missing the 'selection_condition' key.")
+            if not isinstance(subtask["tools"], list) and subtask["tools"] is not None:
+                raise ValueError("The 'tools' key of a subtask is not a list or None.")
+            if isinstance(subtask["tools"], list):
+                possible_tools = list_all_tool_names()
+                for tool in subtask["tools"]:
+                    if tool not in possible_tools:
+                        raise ValueError(f"Tool '{tool}' is not a valid tool name.")
+
+
+def extract_subagent_messages(input_string: str) -> Dict[str, str]:
+    system_pattern = r"SYSTEM:\s*```(.*?)```"
+    # assistant_pattern = r"ASSISTANT:\s*```(.*?)```"
+
+    system_match = re.search(system_pattern, input_string, re.DOTALL)
+    # assistant_match = re.search(assistant_pattern, input_string, re.DOTALL)
+
+    system_content = system_match.group(1).strip() if system_match else None
+    # assistant_content = assistant_match.group(1).strip() if assistant_match else None
+
+    if not system_content:  # or not assistant_content:
+        raise ValueError(f"SYSTEM message were not found in the input string:\n{input_string}")
+
+    return {"system": system_content}  # , "assistant": assistant_content}
+
+
+def extract_content_between_two_triple_backticks(input_string: str) -> str:
+    pattern = r"```(.*)```"  # Greedy, to find content between the furthest apart ```.
+
+    matches = re.findall(pattern, input_string, re.DOTALL)
+
+    # Shouldn't happen, but just in case:
+    if len(matches) > 1:
+        raise ValueError(f"More than one content block found in the input string:\n{input_string}")
+
+    if len(matches) == 1:
+        if "```" in matches[0]:
+            raise ValueError(f"Found too many ``` in the message input string:\n{input_string}")
+        cleaned = matches[0].strip()
+        if cleaned[:4] == "json":
+            cleaned = cleaned[4:].strip()
+        if cleaned[:6] == "python":
+            cleaned = cleaned[6:].strip()
+        return cleaned
+
+    else:
+        raise ValueError(f"Could not find content surrounded by two ``` in the input string:\n{input_string}")
+
+
+def parse_python_list_of_dicts(input_string: str) -> List[Dict[str, Any]]:
+    try:
+        out = ast.literal_eval(input_string)
+    except Exception as e:
+        raise ValueError(f"Could not parse the input string as a Python list of dictionaries:\n{input_string}") from e
+    if not isinstance(out, list):
+        raise ValueError(f"The input string did not evaluate to a list in Python literal:\n{input_string}")
+    for item in out:
+        if not isinstance(item, dict):
+            raise ValueError(
+                "At least one of the items in the list parsed from the input string are not "
+                f"dictionaries in Python literal:\n{input_string}"
+            )
+    return out
+
+
+def parse_python_list_of_strings(input_string: str) -> List[str]:
+    try:
+        out = ast.literal_eval(input_string)
+    except Exception as e:
+        raise ValueError(f"Could not parse the input string as a Python list of strings:\n{input_string}") from e
+    if not isinstance(out, list):
+        raise ValueError(f"The input string did not evaluate to a list in Python literal:\n{input_string}")
+    for item in out:
+        if not isinstance(item, str):
+            raise ValueError(
+                "At least one of the items in the list parsed from the input string are not "
+                f"strings in Python literal:\n{input_string}"
+            )
+    return out
+
+
+def validate_status_updates(status_updates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    for status_update in status_updates:
+        if "subtask_id" not in status_update:
+            raise ValueError(f"A 'subtask_id' key was not found in a status update in the list:\n{status_updates}")
+        if "subtask_status" not in status_update:
+            raise ValueError(f"A 'subtask_status' key was not found in a status update in the list:\n{status_updates}")
+        if status_update["subtask_status"] not in ["completed", "needs_redoing", "skipped"]:
+            raise ValueError(
+                f"The 'subtask_status' value was not one of the allowed values in a status update in the "
+                f"list:\n{status_updates}"
+            )
+        if status_update["subtask_status"] in ["needs_redoing", "skipped"]:
+            if "status_reason" not in status_update:
+                raise ValueError(
+                    "A 'status_reason' key was not found in a status update that needs redoing or was skipped in the "
+                    f"list:\n{status_updates}"
+                )
+    return status_updates
+
+
+def update_statuses_in_structured_plan(
+    structured_plan: List[Dict[str, Any]], status_updates: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    structured_plan = copy.deepcopy(structured_plan)
+    for update in status_updates:
+        for task in structured_plan:
+            for subtask in task["subtasks"]:
+                if subtask["subtask_id"] == update["subtask_id"]:
+                    subtask["subtask_status"] = update["subtask_status"]
+                    if update["subtask_status"] in ["needs_redoing", "skipped"]:
+                        subtask["status_reason"] = update["status_reason"]
+    return structured_plan
+
+
+def get_all_subtasks(structured_plan: List[Dict[str, Any]]) -> List[str]:
+    all_subtasks = []
+    for task in structured_plan:
+        for subtask in task["subtasks"]:
+            all_subtasks.append(subtask["subtask_id"])
+    return all_subtasks
+
+
+def get_task_from_subtask_id(structured_plan: List[Dict[str, Any]], subtask_id: str) -> Dict[str, Any]:
+    for task in structured_plan:
+        for subtask in task["subtasks"]:
+            if subtask["subtask_id"] == subtask_id:
+                return task
+    raise ValueError(f"Could not find a task with the subtask ID:\n{subtask_id}")
+
+
+def validate_subtask_selection(subtask_selection: Any) -> List[str]:
+    # TODO
+    # if not isinstance(subtask_selection, list):
+    #     raise ValueError(f"The subtask selection list was not a list:\n{subtask_selection}")
+    # if not all(isinstance(item, str) for item in subtask_selection):
+    #     raise ValueError(f"Not all items in the subtask selection list were strings:\n{subtask_selection}")
+
+    # possible_subtask_ids = get_all_subtasks(STRUCTURED_PLAN)
+    # for subtask_id in subtask_selection:
+    #     if subtask_id not in possible_subtask_ids:
+    #         raise ValueError(
+    #             f"An invalid subtask ID was found in the subtask selection list:\n{subtask_selection}. "
+    #             f"Possible subtask IDs are:\n{possible_subtask_ids}"
+    #         )
+
+    # # Get all subtasks that have "needs_redoing" status:
+    # needs_redoing_subtasks = [
+    #     subtask["subtask_id"]
+    #     for task in STRUCTURED_PLAN
+    #     for subtask in task["subtasks"]
+    #     if subtask["subtask_status"] == "needs_redoing"
+    # ]
+    # if len(needs_redoing_subtasks) > 0:
+    #     # Raise exception if any of the subtasks that need redoing are not in the subtask selection list:
+    #     if not all(subtask_id in subtask_selection for subtask_id in needs_redoing_subtasks):
+    #         raise ValueError(
+    #             f"Not all subtasks that need redoing were included in the subtask selection list:\n"
+    #             f"Subtasks with 'needs_redoing' status: {needs_redoing_subtasks}\n"
+    #             f"Subtasks selected: {subtask_selection}"
+    #         )
+
+    # if len(subtask_selection) == 0:
+    #     raise ValueError(f"The subtask selection list was empty:\n{subtask_selection}\nAt least one subtask is needed.")
+
+    return subtask_selection
+
+
+def gather_missed_not_started_subtasks(structured_plan: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    # Get all the unique subtask statuses:
+    subtask_statuses = set(subtask["subtask_status"] for task in structured_plan for subtask in task["subtasks"])
+    # Check if all the statuses are "not_started":
+    all_not_started = all(status == "not_started" for status in subtask_statuses)
+    missed_not_started = []
+    if not all_not_started:
+        # Get the task ID of the LAST task that is NOT not_started:
+        last_task_id = [
+            subtask["subtask_id"]
+            for task in structured_plan
+            for subtask in task["subtasks"]
+            if subtask["subtask_status"] != "not_started"
+        ][-1]
+        # Iterate the subtasks, and break at `last_task_id`:
+        done = False
+        for task in structured_plan:
+            if done:
+                break
+            for subtask in task["subtasks"]:
+                if done:
+                    break
+                if subtask["subtask_status"] == "not_started":
+                    missed_not_started.append({subtask["subtask_id"], subtask["subtask_name"]})
+                if subtask["subtask_id"] == last_task_id:
+                    done = True
+    return missed_not_started
+
+
+def update_task_statuses_in_structured_plan(structured_plan: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    # If all subtasks are "not_started", set the task status to "not_started".
+    # If all subtasks are "completed", set the task status to "completed".
+    # Otherwise, set the task status to "in_progress".
+    for task in structured_plan:
+        subtask_statuses = [subtask["subtask_status"] for subtask in task["subtasks"]]
+        if all(status == "not_started" for status in subtask_statuses):
+            task["task_status"] = "not_started"
+        elif all(status == "completed" for status in subtask_statuses):
+            task["task_status"] = "completed"
+        else:
+            task["task_status"] = "in_progress"
+    return structured_plan
 
 
 def filter_messages_by_agent(
@@ -2573,11 +2737,6 @@ def parse_plan_update(input_text, plan_update_marker, no_plan_update_marker):
     if plan_update_present:
         content = ""
         capture = False
-        format_note = (
-            "\nThe format of plan update must be **a list of EPISODE ID strings**, e.g.:\n"
-            '["EP_1", "EP_8", "EP_X9"].\n'
-            "Do not include the episode names or details, it is just a list of episode IDs."
-        )
 
         for line in lines:
             if plan_update_marker in line:
@@ -2597,12 +2756,12 @@ def parse_plan_update(input_text, plan_update_marker, no_plan_update_marker):
             try:
                 updated_plan = eval(match.group())  # Unsafe for untrusted input; consider json.loads
                 if not isinstance(updated_plan, list) or not all(isinstance(item, str) for item in updated_plan):
-                    raise ValueError("Updated plan is not a list of strings." + format_note)
+                    raise ValueError("Updated plan is not a list of strings.")
                 return True, updated_plan
             except Exception as e:
-                raise ValueError(f"Failed to parse updated plan: {e}." + format_note)
+                raise ValueError(f"Failed to parse updated plan: {e}")
 
-        raise ValueError("Plan update marker found but no valid list of strings in brackets." + format_note)
+        raise ValueError("Plan update marker found but no valid list of strings in brackets.")
 
     elif no_plan_update_present:
         return False, None
@@ -2932,21 +3091,7 @@ class WorkerCotState(pydantic.BaseModel):
     delegated_tools: Optional[List[str]] = [] if DEBUG__USE_FILTER_TOOLS else None
 
 
-# NOTE:
-# Define the *additional* tools.
-# If this tool_set -> then allow episodes with these tools.
-# Otherwise, these tools, and episodes with these tools, are excluded!
-# If tools are set to `None` in an episode EPISODE_DB, the additional tools are NOT going to be used unless the tool_set
-# is one that allows them!
-ADDITIONAL_TOOLS = dict()
-ADDITIONAL_TOOLS["full"] = ["feature_extraction_from_text", "balance_data", "data_suite_insights"]
-ADDITIONAL_TOOLS["extra"] = ["knn_shapley_data_valuation", "outlier_detection"]
-# Therefore:
-EXCLUDE_DEFAULT = ADDITIONAL_TOOLS["full"] + ADDITIONAL_TOOLS["extra"]
-EXCLUDE_FULL = ADDITIONAL_TOOLS["extra"]
-
-
-class OpenAIDCEngine(OpenAIEngineBase):
+class OpenAICotEngine(OpenAIEngineBase):
     def __init__(
         self,
         db: DB,
@@ -2980,7 +3125,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
                     "coordinator": m2d(
                         CoordinatorCotState(
                             coordinator_reasoning_stage="write_observations",
-                            current_plan=self.plan,
+                            current_plan=PLAN,
                             last_episode="None",
                         )
                     ),
@@ -3000,76 +3145,6 @@ class OpenAIDCEngine(OpenAIEngineBase):
                     raise ValueError("EngineState was None.")
                 self.session.engine_state = messages_with_engine_state[-1].engine_state
 
-    def _before_define_agents_hook(self) -> None:
-        super()._before_define_agents_hook()
-
-        # === Set up tool & episode filtering. ===
-
-        # Get all the allowed tools, that is, all tools except the excluded ones (based on tool_set engine parameter).
-        all_available_tools = list_all_tool_names(filter_tool_names=None)
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
-            print("All available tools:")
-            rich.pretty.pprint(all_available_tools)
-        tool_set = self.session.engine_params["tool_set"]
-        if tool_set == "default":
-            exclude_tools = EXCLUDE_DEFAULT
-        elif tool_set == "full":
-            exclude_tools = EXCLUDE_FULL
-        else:
-            exclude_tools = []
-        allowed_tools = [t for t in all_available_tools if t not in exclude_tools]
-
-        # Go through EPISODE_DB and the cases where tools are set to None, replacing with allowed tools.
-        # This is because None represents ALL TOOLS (later in the logic) but we must ensure that ONLY allowed tools
-        # # are used.
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
-            print("Allowed tools:")
-            rich.pretty.pprint(allowed_tools)
-        self.allowed_tools = allowed_tools
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
-            print("Allowed tools:")
-            rich.pretty.pprint(allowed_tools)
-        # Filter episodes.
-        self.episode_db = copy.deepcopy(EPISODE_DB)
-        # NOTE: Must use self.episode_db, not EPISODE_DB in this engine!
-        for idx, episode in enumerate(EPISODE_DB):
-            if episode["tools"] is None:
-                # If episode has None tools, replace with **allowed tools** (NOT all available tools).
-                self.episode_db[idx]["tools"] = allowed_tools
-        # NOTE: Now we no longer have any episodes with None (=use all) tools. All tools are explicitly listed.
-        # Filter episodes that have any of the excluded tools.
-
-        # Filter out episodes that have any of the excluded tools.
-        # Set the self.episode_db to only include episodes that do not have any of the excluded tools.
-        filtered_episode_ids = []
-        for episode in self.episode_db:
-            # If episode has any tools that match exclude_tools, exclude it.
-            if any(tool in exclude_tools for tool in episode["tools"]):
-                if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
-                    print(f">>>>>>>> Excluding episode {episode['episode_id']} because of tools: {episode['tools']}")
-                continue
-            filtered_episode_ids.append(episode["episode_id"])
-        self.episode_db = [ep for ep in self.episode_db if ep["episode_id"] in filtered_episode_ids]
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
-            print("Episode DB after excluded tools have been filtered out:")
-            rich.pretty.pprint(self.episode_db)
-
-        # Filter the PLAN (set self.plan) to only include episodes whose `episode_id`s are in self.episode_db.
-        # (i.e. only include episodes that have not been excluded based on the tool_set parameter).
-        self.plan = [ep for ep in PLAN if ep in get_all_episode_ids_from_db(self.episode_db)]
-        # NOTE: Must use self.plan, not PLAN in this engine!
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
-            print("PLAN after filtering out episodes with excluded tools:")
-            rich.pretty.pprint(self.plan)
-
-        # NOTE: Anywhere else in this engine, use self.episode_db and self.plan, not EPISODE_DB and PLAN!
-        # === Set up tool & episode filtering. (END) ===
-
-    @staticmethod
-    def get_engine_parameters() -> List[EngineParameter]:
-        parent_params = OpenAIEngineBase.get_engine_parameters()
-        return parent_params + [ToolSetParameter]
-
     def _set_initial_messages(self, agent: EngineAgent) -> List[Message]:
         if agent.agent_type == "worker":
             msg_w_dc = get_last_message_like(self.get_message_history(), _has_delegated_content)
@@ -3078,16 +3153,16 @@ class OpenAIDCEngine(OpenAIEngineBase):
             delegated_content = None
 
         completed_episodes, remaining_episodes = get_completed_and_remaining_episodes(
-            self.plan, self.get_current_last_episode()
+            PLAN, self.get_current_last_episode()
         )
         system_message_text = update_templates(
             body_text=agent.system_message_template,
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
-                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(self.episode_db),
-                PLAN_REPLACE_MARKER: format_episodes_id_name(self.episode_db, self.plan),
-                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(self.episode_db, completed_episodes),
-                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(self.episode_db, remaining_episodes),
+                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(EPISODE_DB),
+                PLAN_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, PLAN),
+                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, completed_episodes),
+                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, remaining_episodes),
                 WORKER_ACTUAL_TASK_REPLACE_MARKER: str(delegated_content),  # Only applicable for worker.
                 MAX_CHARS_REPLACE_MARKER: str(self.max_tokens_per_message),
                 # Privacy mode templates:
@@ -3172,10 +3247,10 @@ class OpenAIDCEngine(OpenAIEngineBase):
             body_text=agent.system_message_template,
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
-                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(self.episode_db),
-                PLAN_REPLACE_MARKER: format_episodes_id_name(self.episode_db, self.get_current_plan()),
-                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(self.episode_db, completed_episodes),
-                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(self.episode_db, remaining_episodes),
+                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(EPISODE_DB),
+                PLAN_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, self.get_current_plan()),
+                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, completed_episodes),
+                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, remaining_episodes),
                 LAST_EPISODE_REPLACE_MARKER: self.get_current_last_episode(),
                 REASONING_STEP_REPLACE_MARKER: COORDINATOR_REASONING_COT_STAGE_MAP[
                     coordinator_state.coordinator_reasoning_stage
@@ -3247,10 +3322,10 @@ class OpenAIDCEngine(OpenAIEngineBase):
             body_text=MESSAGE_OPTIONS["coordinator"]["reminder"],
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
-                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(self.episode_db),
-                PLAN_REPLACE_MARKER: format_episodes_id_name(self.episode_db, self.get_current_plan()),
-                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(self.episode_db, completed_episodes),
-                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(self.episode_db, remaining_episodes),
+                EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(EPISODE_DB),
+                PLAN_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, self.get_current_plan()),
+                PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, completed_episodes),
+                PLAN_REMAINING_REPLACE_MARKER: format_episodes_id_name(EPISODE_DB, remaining_episodes),
                 LAST_EPISODE_REPLACE_MARKER: self.get_current_last_episode(),
                 REASONING_STEP_REPLACE_MARKER: COORDINATOR_REASONING_COT_STAGE_MAP[
                     coordinator_state.coordinator_reasoning_stage
@@ -3300,8 +3375,6 @@ class OpenAIDCEngine(OpenAIEngineBase):
             tools = list_all_tool_specs()
         else:
             tool_names = d2m(msg_w_dc.engine_state.agent_state["worker"], WorkerCotState).delegated_tools  # type: ignore
-            if tool_names is None:
-                raise ValueError("Delegated tools must not be None as we have an explicit tool filtering mechanism.")
             tools = list_all_tool_specs(filter_tool_names=tool_names)
 
         worker_messages = filter_messages_by_agent(
@@ -3403,7 +3476,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
     def get_current_plan(self) -> List[str]:
         msg_w_plan = get_last_message_like(self.get_message_history(), _has_plan)
         if not msg_w_plan:
-            return copy.deepcopy(self.plan)
+            return copy.deepcopy(PLAN)
         else:
             return d2m(msg_w_plan.engine_state.agent_state["coordinator"], CoordinatorCotState).current_plan  # type: ignore
 
@@ -3428,44 +3501,17 @@ class OpenAIDCEngine(OpenAIEngineBase):
         if last_message_coordinator_state.coordinator_reasoning_stage is None:
             raise ValueError("Last message EngineState must have reasoning stage.")
 
-        print("================================================================================")
-        print(last_message)
-        print(last_message_coordinator_state.coordinator_reasoning_stage)
-        print("================================================================================")
-
         if PROJECT_END_MARKER in last_message.text:
-            try:
-                _, remaining_episodes = get_completed_and_remaining_episodes(
-                    self.get_current_plan(), self.get_current_last_episode()
-                )
-                if len(remaining_episodes) != 0:
-                    raise ValueError(
-                        f"Project end marker found, but there are remaining episodes: {remaining_episodes}."
-                        "You may not complete the project before the end of the plan."
-                    )
+            last_message_coordinator_state.whole_project_completed = True
 
-                last_message_coordinator_state.whole_project_completed = True
+            coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
+            # coordinator_state.coordinator_reasoning_stage = "done"
+            coordinator_state.whole_project_completed = True
+            self.session.engine_state.agent_state["coordinator"] = m2d(coordinator_state)
 
-                coordinator_state = d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState)
-                # coordinator_state.coordinator_reasoning_stage = "done"
-                coordinator_state.whole_project_completed = True
-                self.session.engine_state.agent_state["coordinator"] = m2d(coordinator_state)
+            self.update_state()
 
-                self.update_state()
-
-                return self.session.engine_state
-
-            except ValueError as e:
-                exc_str = str(e)
-                self._append_message(
-                    message=Message(
-                        key=KeyGeneration.generate_message_key(),
-                        role="system",
-                        visibility="llm_only",
-                        agent="coordinator",
-                        text=f"{PROBLEM_WITH_OUTPUT_COORDINATOR}:\n{exc_str}",
-                    )
-                )
+            return self.session.engine_state
 
         if last_message_coordinator_state.coordinator_reasoning_stage == "write_observations":
             # We aren't doing any special parsing in this step.
@@ -3579,14 +3625,8 @@ class OpenAIDCEngine(OpenAIEngineBase):
                         return plan[0]
                     try:
                         last_episode_idx = plan.index(last_episode)
-                    except ValueError:
-                        raise ValueError(
-                            f"Last episode '{last_episode}' not found in the plan. Have you written out the "
-                            "ENTIRE PLAN, including past episodes?\nFor example, if the original plan was ['START_1', "
-                            "'START_2', 'MIDDLE_1', 'MIDDLE_3', 'FINAL_1'], and we have finished 'START_2', and you "
-                            "want to change the 'MIDDLE_3' to 'MIDDLE_X', you must write out the entire new plan, including "
-                            "the past episodes, like so: ['START_1', 'START_2', 'MIDDLE_1', 'MIDDLE_X', 'FINAL_1']."
-                        )
+                    except ValueError as e:
+                        raise ValueError(f"Last episode '{last_episode}' not found in the plan. Have you written out the ENTIRE PLAN, including past episodes?")
                     if last_episode_idx + 1 < len(plan):
                         return plan[last_episode_idx + 1]
                     else:
@@ -3598,7 +3638,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
                 try:
                     worker_actual_task = create_worker_actual_task(
                         plan=plan,
-                        episode_db=self.episode_db,
+                        episode_db=EPISODE_DB,
                         selected_episode=next_episode,
                     )
                     # Any replacements:
@@ -3625,7 +3665,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
 
                 # Get the list of relevant tools.
                 if DEBUG__USE_FILTER_TOOLS:
-                    subtask_dict = [subtask for subtask in self.episode_db if subtask["episode_id"] == next_episode][0]
+                    subtask_dict = [subtask for subtask in EPISODE_DB if subtask["episode_id"] == next_episode][0]
                     if subtask_dict["tools"] is None:
                         relevant_tools = None
                     else:
@@ -3706,18 +3746,18 @@ class OpenAIDCEngine(OpenAIEngineBase):
                 first_message_content=MESSAGE_OPTIONS["coordinator"]["first_message_content"],
                 system_message_template=MESSAGE_OPTIONS["coordinator"]["system_message_template"],
                 first_message_role="assistant",
-                set_initial_messages=OpenAIDCEngine._set_initial_messages,  # type: ignore
-                gather_messages=OpenAIDCEngine._gather_messages_coordinator,  # type: ignore
-                dispatch=OpenAIDCEngine._dispatch_coordinator,  # type: ignore
+                set_initial_messages=OpenAICotEngine._set_initial_messages,  # type: ignore
+                gather_messages=OpenAICotEngine._gather_messages_coordinator,  # type: ignore
+                dispatch=OpenAICotEngine._dispatch_coordinator,  # type: ignore
             ),
             worker=EngineAgent(
                 "worker",
                 system_message_template=MESSAGE_OPTIONS["worker"]["system_message_template"],
                 first_message_content=MESSAGE_OPTIONS["worker"]["first_message_content"],
                 first_message_role="assistant",
-                set_initial_messages=OpenAIDCEngine._set_initial_messages,  # type: ignore
-                gather_messages=OpenAIDCEngine._gather_messages_worker,  # type: ignore
-                dispatch=OpenAIDCEngine._dispatch_worker,  # type: ignore
+                set_initial_messages=OpenAICotEngine._set_initial_messages,  # type: ignore
+                gather_messages=OpenAICotEngine._gather_messages_worker,  # type: ignore
+                dispatch=OpenAICotEngine._dispatch_worker,  # type: ignore
             ),
         )
         as_dict = self.agents_.model_dump()  # {"coordinator": coordinator EngineAgent, ...}
@@ -3728,7 +3768,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
 
     @staticmethod
     def get_engine_name() -> str:
-        return "openai_dc"
+        return "openai_cot"
 
     def project_completed(self) -> bool:
         return d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState).whole_project_completed
@@ -4010,9 +4050,9 @@ class OpenAIDCEngine(OpenAIEngineBase):
         return message
 
 
-class AzureOpenAIDCEngine(
+class AzureOpenAICotEngine(
     AzureOpenAIEngineMixin,  # Mixing needs to come first to override the methods correctly.
-    OpenAIDCEngine,
+    OpenAICotEngine,
 ):
     def __init__(
         self,
@@ -4031,7 +4071,7 @@ class AzureOpenAIDCEngine(
             azure_openai_config=azure_openai_config,
         )
         # Initialize the Base class.
-        OpenAIDCEngine.__init__(
+        OpenAICotEngine.__init__(
             self,
             db=db,
             session=session,
@@ -4042,10 +4082,5 @@ class AzureOpenAIDCEngine(
         )
 
     @staticmethod
-    def get_engine_parameters() -> List[EngineParameter]:
-        parent_params = AzureOpenAIEngineMixin.get_engine_parameters()
-        return parent_params + [ToolSetParameter]
-
-    @staticmethod
     def get_engine_name() -> str:
-        return "azure_openai_dc"
+        return "azure_openai_cot"

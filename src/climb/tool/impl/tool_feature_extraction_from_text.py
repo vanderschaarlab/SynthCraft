@@ -55,10 +55,9 @@ def feature_extraction_from_text(
     data_file_path = workspace / data_file_path
     extracted_data_file_path = workspace / extracted_data_file_path
     df = pd.read_csv(data_file_path)
-    df = clean_dataframe(df)
-
     # Create a copy of the DataFrame to avoid modifying the original
-    df = df.copy()
+    df_original = df.copy()
+    df = clean_dataframe(df)
 
     # Initialize the Matcher
     matcher = Matcher(nlp.vocab)
@@ -119,10 +118,25 @@ def feature_extraction_from_text(
             # Increment the match count for the field
             field_match_count[field] += len(matches)
 
-    # Drop the original text fields
-    df.drop(columns=[field for field in topics_dict.keys()], inplace=True)
+    # Identify all new feature columns based on topics_dict
+    new_feature_columns = []
+    for field, topics in topics_dict.items():
+        for topic in topics.keys():
+            sanitized_topic = topic.replace(" ", "_")
+            column_name = f"{field}_{sanitized_topic}"
+            if column_name in df.columns:
+                new_feature_columns.append(column_name)
 
-    df.to_csv(extracted_data_file_path, index=False)
+    # Add the new feature columns to df_original
+    for column in new_feature_columns:
+        if column in df.columns:
+            df_original[column] = df[column]
+
+    # Drop the original free text fields from df_original
+    df_original.drop(columns=[field for field in topics_dict.keys() if field in df_original.columns], inplace=True)
+
+    # Save the final DataFrame
+    df_original.to_csv(extracted_data_file_path, index=False)
 
     match_count_string = "\n".join(
         [f"Number of matches found in '{field}': {count}" for field, count in field_match_count.items()]
@@ -249,8 +263,6 @@ def clean_dataframe(df, unique_threshold=15):
     # Clean numerical columns
     for col in numerical_columns:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-        # Handle missing values - example: fill with the median
-        df[col] = df[col].fillna(df[col].median())
 
     # Convert boolean columns to integers
     for col in boolean_columns:
