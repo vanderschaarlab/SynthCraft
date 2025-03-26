@@ -1,20 +1,19 @@
 import os
-import pandas as pd
-from pathlib import Path
-from typing import Any, Dict, List, cast
 import re
+from pathlib import Path
+from typing import Any, Dict
 
-from sklearn.model_selection import train_test_split
+import pandas as pd
 from autoprognosis.utils.serialization import load_model_from_file
+from sklearn.model_selection import train_test_split
 
-from openai import AzureOpenAI, OpenAI
-
+from climb.common import Session
 from climb.tool.impl.smart_testing_helpers.SMART import SMART
 from climb.tool.impl.sub_agents import create_llm_client
-from climb.common import Session
 
 from ..tool_comms import ToolCommunicator, ToolReturnIter, execute_tool
 from ..tools import ToolBase
+
 
 def smart_testing(
     tc: ToolCommunicator,
@@ -52,18 +51,27 @@ def smart_testing(
 
     # Step 3: Initialize AzureOpenAI client (replace with your actual configuration)
     client = create_llm_client(session=session, additional_kwargs_required=additional_kwargs_required)
-    pattern = r'openai/?$'
-    base_url = re.sub(pattern, '', str(client._base_url))
+    pattern = r"openai/?$"
+    base_url = re.sub(pattern, "", str(client._base_url))  # noqa: F841
 
     config_dict = {
-        "api_type": "azure" if session.engine_name in ("azure_openai", "azure_openai_nextgen", "azure_openai_min_baseline", "azure_openai_nextgen_sim", "azure_openai_cot") else "openai",
+        "api_type": "azure"
+        if session.engine_name
+        in (
+            "azure_openai",
+            "azure_openai_nextgen",
+            "azure_openai_min_baseline",
+            "azure_openai_nextgen_sim",
+            "azure_openai_cot",
+        )
+        else "openai",
         "api_base": str(client._base_url),
         "api_version": client._api_version,
         "api_key": client.api_key,
-        "engine":  additional_kwargs_required["azure_openai_config"].deployment_name,
-        "deployment_id":  additional_kwargs_required["azure_openai_config"].deployment_name,
-        "temperature":  additional_kwargs_required["engine_params"]["temperature"],
-        "seed": 0
+        "engine": additional_kwargs_required["azure_openai_config"].deployment_name,
+        "deployment_id": additional_kwargs_required["azure_openai_config"].deployment_name,
+        "temperature": additional_kwargs_required["engine_params"]["temperature"],
+        "seed": 0,
     }
 
     # Step 4: Create SMART instance
@@ -80,10 +88,10 @@ def smart_testing(
 
     recommendations = subgroup_finder.generate_model_report(X_train, y_train, X_test, y_test, model)
 
-
     tc.set_returns(
         tool_return=(recommendations),
     )
+
 
 class SmartTesting(ToolBase):
     def _execute(self, **kwargs: Any) -> ToolReturnIter:
@@ -125,10 +133,18 @@ The tool provides a descriptive summary of the subgroups.
                     "properties": {
                         "data_path": {"type": "string", "description": "Path to the data file."},
                         "model_path": {"type": "string", "description": "Path to the saved autoprognosis model."},
-                        "context": {"type": "string", "description": "A description of the dataset, including the target column and features, in plain english."},
+                        "context": {
+                            "type": "string",
+                            "description": "A description of the dataset, including the target column and features, in plain english.",
+                        },
                         "context_target": {"type": "string", "description": "Name of the target column."},
                     },
-                    "required": ["data_path", "model_path", "context", "context_target",],
+                    "required": [
+                        "data_path",
+                        "model_path",
+                        "context",
+                        "context_target",
+                    ],
                 },
             },
         }

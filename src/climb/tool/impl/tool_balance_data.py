@@ -3,9 +3,9 @@ from collections import Counter
 from typing import Any, Dict, Optional, Union
 
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
 from imblearn.over_sampling import SMOTENC, RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
+from sklearn.preprocessing import LabelEncoder
 
 from ..tool_comms import ToolCommunicator, ToolReturnIter, execute_tool
 from ..tools import ToolBase
@@ -73,8 +73,7 @@ def clean_dataframe(df: pd.DataFrame, unique_threshold: int = 15):
     numerical_columns = [
         col
         for col in inferred_numerical_columns
-        if col not in inferred_categorical_columns
-        and col not in inferred_boolean_columns
+        if col not in inferred_categorical_columns and col not in inferred_boolean_columns
     ]
     categorical_columns = inferred_categorical_columns
     boolean_columns = inferred_boolean_columns
@@ -82,7 +81,7 @@ def clean_dataframe(df: pd.DataFrame, unique_threshold: int = 15):
     # Convert categorical columns using LabelEncoder
     for col in categorical_columns:
         le = LabelEncoder()
-        df[col] = le.fit_transform(df[col].fillna('Missing'))
+        df[col] = le.fit_transform(df[col].fillna("Missing"))
         encoders[col] = le
 
     # Clean numerical columns
@@ -138,15 +137,15 @@ def balance_data(
     y_cleaned = df_cleaned[target_column]
 
     if sampling_strategy is None:
-        sampling_strategy = compute_sampling_strategy(
-            y_cleaned, method=method, desired_ratio=desired_ratio
-        )
+        sampling_strategy = compute_sampling_strategy(y_cleaned, method=method, desired_ratio=desired_ratio)
         tc.print(f"Computed sampling strategy: {sampling_strategy}")
     else:
         tc.print(f"Using provided sampling strategy: {sampling_strategy}")
-    
+
     # Identify categorical feature indices for SMOTENC
-    categorical_features = [i for i, col in enumerate(X_cleaned.columns) if col in encoders]  # Identify categorical feature indices for SMOTENC
+    categorical_features = [
+        i for i, col in enumerate(X_cleaned.columns) if col in encoders
+    ]  # Identify categorical feature indices for SMOTENC
 
     if method == "smote":
         sampler = SMOTENC(
@@ -170,9 +169,7 @@ def balance_data(
             random_state=42,
         )
     else:
-        raise ValueError(
-            "Invalid method. Choose from 'smote', 'oversample', 'undersample', or 'combine'."
-        )
+        raise ValueError("Invalid method. Choose from 'smote', 'oversample', 'undersample', or 'combine'.")
 
     # Apply the sampler on the cleaned data
     tc.print("Applying the re-balancing algorithm...")
@@ -197,7 +194,6 @@ def balance_data(
         num_synthetic = num_resampled - num_original
 
         if num_synthetic > 0:
-
             # Extract synthetic samples
             synthetic_X = X_resampled[-num_synthetic:]
             synthetic_y = y_resampled[-num_synthetic:]
@@ -215,7 +211,9 @@ def balance_data(
                 synthetic_df[col] = le.inverse_transform(synthetic_df[col])
 
             # Append synthetic samples to the original dataset
-            df_balanced_final = pd.concat([df_original, synthetic_df], ignore_index=True)  # Concatenate synthetic samples with original data
+            df_balanced_final = pd.concat(
+                [df_original, synthetic_df], ignore_index=True
+            )  # Concatenate synthetic samples with original data
         else:
             # No synthetic samples were generated
             tc.print("No synthetic samples were generated.")

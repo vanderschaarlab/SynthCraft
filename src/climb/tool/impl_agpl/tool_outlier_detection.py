@@ -18,7 +18,6 @@ from ..tools import ToolBase
 raise_if_extra_not_available()
 
 
-
 def clean_dataframe(df, unique_threshold=15):
     """
     Cleans the dataframe by encoding categorical variables, handling missing values, and converting data types.
@@ -60,7 +59,7 @@ def clean_dataframe(df, unique_threshold=15):
 
     # Convert categorical columns to category indices, handling NaNs
     for col in categorical_columns:
-        df[col] = pd.Categorical(df[col].fillna('Missing')).codes
+        df[col] = pd.Categorical(df[col].fillna("Missing")).codes
 
     # Clean numerical columns
     for col in numerical_columns:
@@ -89,20 +88,19 @@ def cleanlab_outlier_detection(
             f"`task_type` must be 'classification' or 'survival_analysis'. Cleanlab does not support {task_type}."
         )
 
-
     # Get the data and target variable
     tc.print("Loading the data...")
     workspace = Path(workspace)
     data_file_path = workspace / data_file_path
     cleaned_file_path = workspace / cleaned_file_path
     df = pd.read_csv(data_file_path)
-    
+
     # Save the original data for later
     df_original = df.copy()
     original_target_variable = target_variable
     X_original = df.drop(columns=[original_target_variable]).values
     y_original = df[original_target_variable].values
-    
+
     # Convert to classification using time horizon for the sake of the tool
     if task_type == "survival_analysis":
         if time_variable is None:

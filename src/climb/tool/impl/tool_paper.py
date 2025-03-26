@@ -2,15 +2,14 @@ import os
 from typing import Any, Dict, List, cast
 
 import pdfplumber
-from openai import AzureOpenAI, OpenAI
 
 from climb.common import Session
 from climb.common.data_structures import UploadedFileAbstraction
-from climb.engine.const import MODEL_MAX_MESSAGE_TOKENS
 from climb.tool.impl.sub_agents import create_llm_client, get_llm_chat
 
 from ..tool_comms import ToolCommunicator, ToolReturnIter, execute_tool
 from ..tools import ToolBase, UserInputRequest
+
 
 def upload_and_summarize_example_paper(
     tool_communicator: ToolCommunicator,

@@ -1,21 +1,20 @@
 import ast
-
-from pydantic import BaseModel, PrivateAttr
+import hashlib
+import itertools
+import re
+import warnings
 from typing import Any, Dict, Optional
+
 import pandas as pd
 from openai import AzureOpenAI
-import warnings
-import hashlib
-import re
-import itertools
+from pydantic import BaseModel, PrivateAttr
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import OneHotEncoder
-
-import pandas as pd
-from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 # Import calculate_group_statistics function
 from .utils import calculate_group_statistics, calculate_group_statistics_string
+
 
 def generate_combinations_for_variable(var_values):
     # Single value combinations
@@ -28,9 +27,10 @@ def generate_combinations_for_variable(var_values):
 def clean_query_string(query):
     # Replace or remove unwanted characters
     query = query.replace("\\", "")  # Remove backslashes
-    query = query.replace("'", "")   # Remove single quotes if necessary
+    query = query.replace("'", "")  # Remove single quotes if necessary
 
     return query
+
 
 def convert_to_string_condition(query):
     # Regex pattern to extract the column name and the condition
@@ -47,6 +47,7 @@ def convert_to_string_condition(query):
     else:
         # Returning the old query
         return query
+
 
 class SMART(BaseModel):
     llm: AzureOpenAI
@@ -67,13 +68,12 @@ class SMART(BaseModel):
     _subgroup_cache: Dict[str, Dict] = PrivateAttr(default_factory=dict)
     _unique_values: Optional[Dict] = PrivateAttr(default=None)
 
-
     class Config:
         arbitrary_types_allowed = True
-    
+
     def _get_llm_response(self, input_text, system_message=None, metadata_output=False, modelid=None):
         if self.verbose:
-            print('----------INPUT TEXT --------------')
+            print("----------INPUT TEXT --------------")
             print(input_text)
 
         if system_message is None:
@@ -81,37 +81,37 @@ class SMART(BaseModel):
             response = self.llm.chat.completions.create(
                 model=self.config["engine"],
                 messages=[{"role": "user", "content": input_text}],
-                temperature=self.config['temperature'],
+                temperature=self.config["temperature"],
                 # seed=self.config['seed'],
-        )
+            )
         else:
             # Get the response from the LLM with a system message
             response = self.llm.chat.completions.create(
-            model=self.config["engine"],
-                messages=[{"role": "system", "content": system_message}, 
-                            {"role": "user", "content": input_text}],
-                temperature=self.config['temperature'],
-                seed=self.config['seed'],
-        )
+                model=self.config["engine"],
+                messages=[{"role": "system", "content": system_message}, {"role": "user", "content": input_text}],
+                temperature=self.config["temperature"],
+                seed=self.config["seed"],
+            )
         message = response.choices[0].message.content
 
         if self.verbose:
-            print('----------LLM RESPONSE TEXT--------------')
+            print("----------LLM RESPONSE TEXT--------------")
             print(message)
 
         if metadata_output:
-            metadata = {'tools': response.choices[0].message.tool_calls,
-                        'function calls': response.choices[0].message.function_call}
-            return message, metadata     
+            metadata = {
+                "tools": response.choices[0].message.tool_calls,
+                "function calls": response.choices[0].message.function_call,
+            }
+            return message, metadata
         else:
-
             return message
-    
+
     def _generate_cache_key(self, X: pd.DataFrame) -> str:
         """
         Generates a unique cache key based on the DataFrame columns.
         """
-        column_string = ','.join(sorted(X.columns))
+        column_string = ",".join(sorted(X.columns))
         return hashlib.sha256(column_string.encode()).hexdigest()
 
     def clear_cache(self):
@@ -119,7 +119,7 @@ class SMART(BaseModel):
         self._subgroup_cache.clear()
         if self.verbose:
             print("Cache cleared.")
-            
+
     def _get_unique_values(self, X, unique_threshold: int = 30) -> Dict[str, Any]:
         """
         Parses through the dataset and returns the unique values for each column.
@@ -129,18 +129,24 @@ class SMART(BaseModel):
             if len(X[col].unique()) <= unique_threshold:
                 unique_values[col] = list(X[col].unique())
             else:
-                if X[col].dtype in ['int64', 'float64']:
-                    unique_values[col] = {'min': X[col].min(), 'mean': X[col].mean(), 'max': X[col].max()}
+                if X[col].dtype in ["int64", "float64"]:
+                    unique_values[col] = {"min": X[col].min(), "mean": X[col].mean(), "max": X[col].max()}
                 else:
                     unique_values[col] = "Too many unique values"
                     if self.verbose:
                         warnings.warn(f"Column {col} has too many unique values.", UserWarning)
         return unique_values
 
-    
-    def fit(self, X: pd.DataFrame, context: Optional[str] = None, context_target: Optional[str] = None, n: int = 5, evaluate_feasibility=False):
+    def fit(
+        self,
+        X: pd.DataFrame,
+        context: Optional[str] = None,
+        context_target: Optional[str] = None,
+        n: int = 5,
+        evaluate_feasibility=False,
+    ):
         """Finds subgroups by generating hypotheses, operationalizing them, and summarizing the findings"""
-        
+
         cache_key = self._generate_cache_key(X)
 
         # Check if the result is already cached
@@ -161,9 +167,9 @@ class SMART(BaseModel):
         # Evaluate feasibility
         if evaluate_feasibility:
             feasibility_response = self._feasibility_check(unique_values, context, context_target)
-            if feasibility_response.lower().strip() == 'yes':
+            if feasibility_response.lower().strip() == "yes":
                 print("Group discovery is possible. Discovering subgroups...")
-            elif feasibility_response.lower().strip() == 'no':
+            elif feasibility_response.lower().strip() == "no":
                 print("No groups discovered")
                 self._subgroups = {}
                 self._subgroup_cache[cache_key] = self._subgroups
@@ -172,12 +178,14 @@ class SMART(BaseModel):
             else:
                 print(f"The response from the feasibility status is: {feasibility_response.lower().strip()}")
 
-        # Assuming that the task is feasible, generating hyptheses    
+        # Assuming that the task is feasible, generating hyptheses
         hypotheses = self._get_llm_response(task)
         self._hypotheses = hypotheses
 
         # Operationalizing the hypotheses
-        operationalization_prompt = self._construct_operationalization_prompt(hypotheses, unique_values, context, context_target)
+        operationalization_prompt = self._construct_operationalization_prompt(
+            hypotheses, unique_values, context, context_target
+        )
         operationalizations = self._get_llm_response(operationalization_prompt)
 
         # Summarizing the findings
@@ -185,29 +193,32 @@ class SMART(BaseModel):
         summary_dict = self._get_llm_response(summarization_prompt)
 
         # Set regex pattern
-        pattern = r'\{.*?\}'
+        pattern = r"\{.*?\}"
 
         try:
             summary_dict = re.findall(pattern, summary_dict, re.DOTALL)[0]
             self._subgroups = ast.literal_eval(summary_dict)
-            
-        except Exception as e:
+
+        except Exception:
             correction_prompt = f"""The following is a dictionary that contains the subgroups. Return ONLY the dictionary with no additional text before or after. {summary_dict}"""
-            if self.verbose: print(correction_prompt)
+            if self.verbose:
+                print(correction_prompt)
             response_correction = self._get_llm_response(correction_prompt)
             summary_dict = re.findall(pattern, response_correction, re.DOTALL)[0]
             self._subgroups = ast.literal_eval(summary_dict)
 
-        # Adjsut the subgroup queries
+        # Adjust the subgroup queries
         self._adjust_subgroup_queries(X)
 
-       # Cache the subgroup findings
+        # Cache the subgroup findings
         self._subgroup_cache[cache_key] = self._subgroups
         return self
-    
-    def find_subgroup_variables(self, X: pd.DataFrame, context: Optional[str] = None, context_target: Optional[str] = None, n: int = 30):
+
+    def find_subgroup_variables(
+        self, X: pd.DataFrame, context: Optional[str] = None, context_target: Optional[str] = None, n: int = 30
+    ):
         """Finds subgroups by generating hypotheses, operationalizing them, and summarizing the findings"""
-        
+
         cache_key = self._generate_cache_key(X)
 
         # Check if the result is already cached
@@ -215,7 +226,7 @@ class SMART(BaseModel):
             self._subgroups = self._subgroup_cache[cache_key]
             print("Cached subgroups loaded.")
             return self
-                
+
         unique_values = self._get_unique_values(X)
         # Save the unique values
         self._unique_values = unique_values
@@ -225,16 +236,18 @@ class SMART(BaseModel):
         self.context = context
         self.context_target = context_target
         self.task = task
-       
+
         hypotheses = self._get_llm_response(task)
         self._hypotheses = hypotheses
 
         # Operationalizing the hypotheses
-        operationalization_prompt = self._construct_operationalization_subgroups(hypotheses, unique_values, context, context_target)
+        operationalization_prompt = self._construct_operationalization_subgroups(
+            hypotheses, unique_values, context, context_target
+        )
         operationalizations = self._get_llm_response(operationalization_prompt)
 
         # Set regex pattern
-        pattern = r'\{.*?\}'
+        pattern = r"\{.*?\}"
 
         try:
             summary_dict = re.findall(pattern, operationalizations, re.DOTALL)[0]
@@ -243,10 +256,11 @@ class SMART(BaseModel):
             for key, value in self._subgroups.items():
                 if not isinstance(value, list):
                     self._subgroups[key] = [value]
-            
-        except Exception as e:
+
+        except Exception:
             correction_prompt = f"""The following is a dictionary that contains the subgroups. Return ONLY the dictionary with no additional text before or after. {operationalizations}"""
-            if self.verbose: print(correction_prompt)
+            if self.verbose:
+                print(correction_prompt)
             response_correction = self._get_llm_response(correction_prompt)
             summary_dict = re.findall(pattern, response_correction, re.DOTALL)[0]
             self._subgroups = ast.literal_eval(summary_dict)
@@ -268,20 +282,19 @@ class SMART(BaseModel):
         # Check if all column names in the dictionary conditions are valid
         valid_columns = set(X.columns)
         for group, condition in self._subgroups.items():
-
             # Extract column names from the condition
             columns_in_condition = [word for word in condition.split() if word in valid_columns]
             if not columns_in_condition:
                 warnings.warn(f"No valid columns found in condition for group {group}: {condition}", UserWarning)
 
         # TODO: Check if values in the dictionary exist in the DataFrame
-        
+
         # Create group columns
         for group, condition in self._subgroups.items():
             try:
                 indices_condition = X.query(condition).index
                 bool_condition = X.index.isin(indices_condition)
-                X[f'group_{group}'] = bool_condition
+                X[f"group_{group}"] = bool_condition
             except Exception as e:
                 warnings.warn(f"Failed to apply condition for group {group}: {condition}. Error: {e}", UserWarning)
 
@@ -296,12 +309,11 @@ class SMART(BaseModel):
     def hypotheses(self):
         """Return the hypotheses"""
         return self._hypotheses
-    
+
     def _self_refine(self, unique_values, context, context_target, previous_response, system_message, n=3):
         """Self-refines an answer multiple times"""
 
         for iter_ in range(n):
-
             selfrefine_task = f"""
             The context is: {context} and the target variable is {context_target} with the following columns: {', '.join(unique_values.keys())}. \nPrevious answer: {previous_response}. \n\nTASK: Critically evaluate the answer below and then re-write it. Make sure to follow the instructions provided before.  \n\n
             """
@@ -318,22 +330,26 @@ class SMART(BaseModel):
 
         if system_message is None:
             system_message = """You are an expert at clearly evaluating whether there is a direct connection between the covariates and the outcome variable. Your goal is to determine whether such a connection exists in academic literature or other sources. Avoid making ridiculous connections that are unlikely to hold in reality. Be critical. Focus on avoiding false positives (i.e. relationships that might not exist) because it is costly to test these assumptions and we might overfit the results. Avoid speculative or weak connections. Prioritize false negatives (missing connections) than false positives (offering weak connections that might not hold)"""
-            
+
         # Evaluating the feasibility of the response
-        if self.verbose: print("Evaluating feasibility of the response...")
+        if self.verbose:
+            print("Evaluating feasibility of the response...")
         feasibility_response = self._get_llm_response(feasibility_task, system_message=system_message)
-        
-        if self.verbose: print("Self-refining answer...")
+
+        if self.verbose:
+            print("Self-refining answer...")
 
         # Refining the answer
-        feasibility_response = self._self_refine(unique_values, context, context_target, feasibility_response, system_message, n=n_refine)
+        feasibility_response = self._self_refine(
+            unique_values, context, context_target, feasibility_response, system_message, n=n_refine
+        )
 
         # Convert to boolean
         boolean_task = f"""Your task is to return an answer 'yes' or 'no' on whether it is worthwile to inspect subgroups, based on the response provided below. Answer: {feasibility_response} \n\nTASK: Answer whether it is worthwile to inspect subgroups, based on the response provided above. Answer: 'yes' or 'no'."""
         feasibility_boolean_response = self._get_llm_response(boolean_task)
 
         return feasibility_boolean_response
-    
+
     def _construct_task_hypotheses(self, unique_values, context, context_target, n):
         """Constructs the task description for the LLM."""
         task = f"""Your task is to propose possible hypotheses as to which subgroups within the dataset might have worse predictive performance than on average because of societal bias in the dataset, insufficient data, other relationships, or others. The subgroups might be based on any of the provided characteristics, as well as on any combination of such characteristics. 
@@ -349,8 +365,7 @@ class SMART(BaseModel):
         
         """
         return task
-    
-    
+
     def _construct_task(self, unique_values, context, context_target, n):
         """Constructs the task description for the LLM."""
         task = f"""Your task is to propose possible hypotheses as to which subgroups within the dataset might have worse predictive performance than on average because of societal bias in the dataset, insufficient data, other relationships, or others. The subgroups might be based on any of the provided characteristics, as well as on any combination of such characteristics. 
@@ -365,7 +380,7 @@ class SMART(BaseModel):
         Hypothesis 2: <Hypothesis>; Justification: <Justification>
         """
         return task
-    
+
     def _construct_operationalization_prompt(self, hypotheses, unique_values, context, context_target):
         """Constructs the operationalization prompt for the LLM."""
         operationalization_prompt = f"""
@@ -392,7 +407,7 @@ class SMART(BaseModel):
         TASK: return a dictionary that contains an index number as the key and the column value as the value. If there are multiple columns in that hypothesis, return them in a list. There are the column names: {', '.join(unique_values.keys())}.
         """
         return operationalization_prompt
-    
+
     def _construct_revised_operationalization_prompt(self, new_context, unique_values, context, context_target):
         """Constructs the operationalization prompt for the LLM."""
         operationalization_prompt = f"""
@@ -413,7 +428,6 @@ class SMART(BaseModel):
         """
         return operationalization_prompt
 
-    
     def _construct_summarization_prompt(self, operationalizations, unique_values):
         """Constructs the summarization prompt for the LLM."""
 
@@ -430,12 +444,12 @@ class SMART(BaseModel):
         Column values: {str(unique_values.items())}
         """
         return summarization_prompt
-    
+
     def _adjust_subgroup_queries(self, X: pd.DataFrame, n_subgroups=1):
         """Adjusts the subgroup queries if they do not exist in the dataset."""
 
         unique_values = self._unique_values
-        
+
         for group, condition in list(self._subgroups.items())[:n_subgroups]:
             try:
                 # Check if the condition yields any rows
@@ -443,39 +457,39 @@ class SMART(BaseModel):
                     # Call LLM to adjust the condition
                     adjustment_prompt = self._construct_adjustment_prompt(condition, unique_values)
                     adjusted_condition = self._get_llm_response(adjustment_prompt)
-                
+
                     # Update the condition
                     self._subgroups[group] = adjusted_condition
                     print("Primary condition: ", condition)
                     print("Adjusted condition: ", adjusted_condition)
             except Exception as e:
                 warnings.warn(f"Error evaluating condition for group {group}: {condition}. Error: {e}", UserWarning)
-            
-            # Call LLM to adjust the condition
+
+                # Call LLM to adjust the condition
                 print("Adjusting condition...")
-                unique_values_adj = {k:v for k,v in unique_values.items() if k in condition}
-                
+                unique_values_adj = {k: v for k, v in unique_values.items() if k in condition}
+
                 adjustment_prompt = self._construct_adjustment_prompt(condition, unique_values_adj)
                 adjusted_condition = self._get_llm_response(adjustment_prompt)
-                #TODO - make this part more robust.
+                # TODO - make this part more robust.
                 try:
                     X.query(adjusted_condition)
                 except Exception as e:
                     adjusted_condition = clean_query_string(adjusted_condition)
                     # Check if the condition has any strings assuming it is a single condition
-                    if 'and' not in adjusted_condition:
+                    if "and" not in adjusted_condition:
                         adjusted_condition = convert_to_string_condition(adjusted_condition)
-                    
+
                 print("Primary condition: ", condition)
                 print("Adjusted condition: ", adjusted_condition)
                 # Update the condition
                 self._subgroups[group] = adjusted_condition
-        
+
     def _construct_adjustment_prompt(self, condition, unique_values):
         """
         Constructs the prompt for adjusting a subgroup condition.
         """
-        
+
         adjustment_prompt = f"""
         The following pandas query does not match any rows in the dataset: '{condition}'. This condition uses a column and a value to filter values, but the data types are incorrect.
         Adjust the condition using the datasets values and columns, such that the condition would work on the unique values in the dataset, and the condition would be as close as possible to the original one.
@@ -485,7 +499,7 @@ class SMART(BaseModel):
         Provide ONLY the query. Query: 
         """
         return adjustment_prompt
-    
+
     def extract_hypotheses_and_justifications(self):
         """
         Extracts hypotheses and their justifications from the provided text and
@@ -500,10 +514,10 @@ class SMART(BaseModel):
 
         if not text:
             print("No hypotheses found in '_hypotheses'. Ensure that 'fit' has been called.")
-            return pd.DataFrame(columns=['Hypothesis', 'Justification', 'Operationalization'])
+            return pd.DataFrame(columns=["Hypothesis", "Justification", "Operationalization"])
 
         # Split the text into lines
-        lines = text.split('\n')
+        lines = text.split("\n")
 
         # Lists to store hypotheses, justifications, and operationalizations
         hypotheses = []
@@ -517,11 +531,13 @@ class SMART(BaseModel):
         # Process each line to extract hypothesis and justification
         for line_number, line in enumerate(lines, start=1):
             line = line.strip()
-            if line.startswith('Hypothesis'):
-                hypothesis_part, justification_part = line.split('; ', 1)
+            if line.startswith("Hypothesis"):
+                hypothesis_part, justification_part = line.split("; ", 1)
                 # Extract text after 'Hypothesis: ' and 'Justification: ' if present
-                hypothesis = hypothesis_part.split(': ', 1)[1] if ': ' in hypothesis_part else hypothesis_part
-                justification = justification_part.split(': ', 1)[1] if ': ' in justification_part else justification_part
+                hypothesis = hypothesis_part.split(": ", 1)[1] if ": " in hypothesis_part else hypothesis_part
+                justification = (
+                    justification_part.split(": ", 1)[1] if ": " in justification_part else justification_part
+                )
                 hypotheses.append(hypothesis)
                 justifications.append(justification)
 
@@ -536,11 +552,9 @@ class SMART(BaseModel):
                     operationalizations.append(None)
 
         # Create a DataFrame
-        df = pd.DataFrame({
-            'Hypothesis': hypotheses,
-            'Justification': justifications,
-            'Operationalization': operationalizations
-        })
+        df = pd.DataFrame(
+            {"Hypothesis": hypotheses, "Justification": justifications, "Operationalization": operationalizations}
+        )
 
         # Optional: Check for alignment between hypotheses and operationalizations
         if len(df) != len(subgroup_keys):
@@ -548,33 +562,43 @@ class SMART(BaseModel):
 
         return df
 
-    def generate_model_report(self, 
-                              X_train, y_train, X_test, 
-                              y_test, model, 
-                              keys_calculate = ['group_size',
-                                                'support',
-                                                'p_value_bootstrap',
-                                                'num_criteria',
-                                                'outcome_diff',
-                                                'accuracy_diff',
-                                                'odds_ratio_outcome',
-                                                'odds_ratio_acc',
-                                                'lift_outcome',
-                                                'lift_acc',
-                                                'weighted_relative_outcome',
-                                                'weighted_relative_accuracy']):
+    def generate_model_report(
+        self,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        model,
+        keys_calculate=[
+            "group_size",
+            "support",
+            "p_value_bootstrap",
+            "num_criteria",
+            "outcome_diff",
+            "accuracy_diff",
+            "odds_ratio_outcome",
+            "odds_ratio_acc",
+            "lift_outcome",
+            "lift_acc",
+            "weighted_relative_outcome",
+            "weighted_relative_accuracy",
+        ],
+    ):
         """Currenty supported only for the subgroup_finder without the self-falsification mechanism"""
         table_summary = self.extract_hypotheses_and_justifications()
         table_summary_train = table_summary.copy()
-        for oper in table_summary_train['Operationalization']:
+        for oper in table_summary_train["Operationalization"]:
             for key in keys_calculate:
-                table_summary_train.loc[table_summary_train['Operationalization'] == oper, key] = calculate_group_statistics(X_train, y_train, model, oper)[key]
-                
-        table_summary_test = table_summary.copy()
-        for oper in table_summary_test['Operationalization']:
-            for key in keys_calculate:
-                table_summary_test.loc[table_summary_test['Operationalization'] == oper, key] = calculate_group_statistics(X_test, y_test, model, oper)[key]
+                table_summary_train.loc[table_summary_train["Operationalization"] == oper, key] = (
+                    calculate_group_statistics(X_train, y_train, model, oper)[key]
+                )
 
+        table_summary_test = table_summary.copy()
+        for oper in table_summary_test["Operationalization"]:
+            for key in keys_calculate:
+                table_summary_test.loc[table_summary_test["Operationalization"] == oper, key] = (
+                    calculate_group_statistics(X_test, y_test, model, oper)[key]
+                )
 
         input_text = f"""
         The following is the context: {self.context}. The following is the target context: {self.context_target}. The following is a table summarizing the information about the results on the training dataset: {table_summary_train}. The following is a table summarizing the information about the results on the test dataset: {table_summary_test}.
@@ -585,17 +609,17 @@ class SMART(BaseModel):
         return response_recommendations
 
     def revise_hypotheses(self, new_context: str) -> str:
-            """
-            Revises the existing hypotheses based on a new context.
+        """
+        Revises the existing hypotheses based on a new context.
 
-            :param new_context: A string representing the new context to consider for revising hypotheses.
-            :return: A string containing the set of new hypotheses.
-            """
-            if self._hypotheses is None:
-                raise ValueError("No existing hypotheses to revise. Please run 'fit' method first.")
+        :param new_context: A string representing the new context to consider for revising hypotheses.
+        :return: A string containing the set of new hypotheses.
+        """
+        if self._hypotheses is None:
+            raise ValueError("No existing hypotheses to revise. Please run 'fit' method first.")
 
-            # Constructing the new prompt
-            revise_prompt = f"""
+        # Constructing the new prompt
+        revise_prompt = f"""
             The original context for the dataset was: {self.context} with the target variable {self.context_target}. Based on this, the following hypotheses were generated: {self._hypotheses}.
 
             The subgroups identified were: {str(self._subgroups)}
@@ -605,22 +629,27 @@ class SMART(BaseModel):
             TASK: Considering both the original and the new context, revise the earlier hypotheses. Generate a new set of hypotheses instead of the old hypotheses that take into account any changes or additional information provided by the new context. Ensure that these hypotheses are relevant and applicable to the updated scenario. Assume access to the same data as before.
             """
 
-            # Getting the response from LLM
-            new_hypotheses = self._get_llm_response(revise_prompt)
+        # Getting the response from LLM
+        new_hypotheses = self._get_llm_response(revise_prompt)
 
-            # Revise the hypotheses
-            if self.verbose: print("Revising hypotheses...")
-            new_hypotheses = self._self_refine(self._unique_values, new_context, self.context_target, new_hypotheses, system_message=revise_prompt, n=2)
+        # Revise the hypotheses
+        if self.verbose:
+            print("Revising hypotheses...")
+        new_hypotheses = self._self_refine(
+            self._unique_values, new_context, self.context_target, new_hypotheses, system_message=revise_prompt, n=2
+        )
 
-            # Updating the hypotheses attribute
-            self._updated_hypotheses = new_hypotheses
+        # Updating the hypotheses attribute
+        self._updated_hypotheses = new_hypotheses
 
-            return new_hypotheses
-    
+        return new_hypotheses
+
     def revise_fit(self, new_context, X):
         unique_values = self._unique_values
-    # Operationalizing the hypotheses
-        operationalization_prompt = self._construct_revised_operationalization_prompt(new_context, unique_values, self.context, self.context_target)
+        # Operationalizing the hypotheses
+        operationalization_prompt = self._construct_revised_operationalization_prompt(
+            new_context, unique_values, self.context, self.context_target
+        )
         operationalizations = self._get_llm_response(operationalization_prompt)
 
         # Summarizing the findings
@@ -629,24 +658,27 @@ class SMART(BaseModel):
         summary_dict = self._get_llm_response(summarization_prompt)
 
         # Set regex pattern
-        pattern = r'\{.*?\}'
+        pattern = r"\{.*?\}"
 
         try:
             summary_dict = re.findall(pattern, summary_dict, re.DOTALL)[0]
             subgroups = ast.literal_eval(summary_dict)
-            
-        except Exception as e:
+
+        except Exception:
             correction_prompt = f"""The following is a dictionary that contains the subgroups. Return ONLY the dictionary with no additional text before or after. Return an empty dictionary if none exists. \n {summary_dict}"""
-            if self.verbose: print(correction_prompt)
+            if self.verbose:
+                print(correction_prompt)
             response_correction = self._get_llm_response(correction_prompt)
             summary_dict = re.findall(pattern, response_correction, re.DOTALL)[0]
             subgroups = ast.literal_eval(summary_dict)
 
         return subgroups
 
-    def get_optimal_split_query(self, dataframe, features, outcome, min_group_size=10, test_for_min=True, max_group_size=float('inf')):
+    def get_optimal_split_query(
+        self, dataframe, features, outcome, min_group_size=10, test_for_min=True, max_group_size=float("inf")
+    ):
         """
-        Generates a query string for splitting the dataframe into two subgroups 
+        Generates a query string for splitting the dataframe into two subgroups
         where the difference in the outcome variable is maximized, based on up to three features.
 
         :param dataframe: A pandas DataFrame containing the data.
@@ -655,7 +687,7 @@ class SMART(BaseModel):
         :param min_group_size: The minimum size of each group.
         :return: A query string for the subgroup where the outcome is minimized.
         """
-        
+
         if not all(feature in dataframe.columns for feature in features):
             raise ValueError("All features must be present in the dataframe")
         if outcome not in dataframe.columns:
@@ -674,46 +706,54 @@ class SMART(BaseModel):
         def traverse_tree(node=0, depth=0, conditions=[]):
             if tree_model.tree_.children_left[node] == tree_model.tree_.children_right[node]:  # Leaf node
                 if not conditions:  # Check for empty conditions
-                    return None, float('-inf')
+                    return None, float("-inf")
                 # Evaluate split
-                left_indices = dataframe.query(' and '.join(conditions)).index
+                left_indices = dataframe.query(" and ".join(conditions)).index
                 right_indices = dataframe.index.difference(left_indices)
 
                 if test_for_min:
                     if len(left_indices) < min_group_size or len(right_indices) < min_group_size:
-                        return None, float('-inf')
+                        return None, float("-inf")
                 else:
                     if len(left_indices) < max_group_size and len(left_indices) > min_group_size:
                         left_mean = dataframe.loc[left_indices, outcome].mean()
                         right_mean = dataframe.loc[right_indices, outcome].mean()
                         discrepancy = abs(left_mean - right_mean)
                         if left_mean >= right_mean:
-                            return ' and '.join(conditions), discrepancy
+                            return " and ".join(conditions), discrepancy
                         else:
-                            conditions = [cond.replace('<=', '>') if '<=' in cond else cond.replace('>', '<=') for cond in conditions]
-                            return ' and '.join(conditions), discrepancy
+                            conditions = [
+                                cond.replace("<=", ">") if "<=" in cond else cond.replace(">", "<=")
+                                for cond in conditions
+                            ]
+                            return " and ".join(conditions), discrepancy
                     elif len(right_indices) < max_group_size and len(right_indices) > min_group_size:
                         right_mean = dataframe.loc[right_indices, outcome].mean()
                         left_mean = dataframe.loc[left_indices, outcome].mean()
                         discrepancy = abs(left_mean - right_mean)
                         if right_mean <= left_mean:
-                            conditions = [cond.replace('<=', '>') if '<=' in cond else cond.replace('>', '<=') for cond in conditions]
-                            return ' and '.join(conditions), discrepancy
+                            conditions = [
+                                cond.replace("<=", ">") if "<=" in cond else cond.replace(">", "<=")
+                                for cond in conditions
+                            ]
+                            return " and ".join(conditions), discrepancy
                         else:
-                            return ' and '.join(conditions), discrepancy
+                            return " and ".join(conditions), discrepancy
                     else:
-                        return None, float('-inf')
-                    
+                        return None, float("-inf")
+
                 left_mean = dataframe.loc[left_indices, outcome].mean()
                 right_mean = dataframe.loc[right_indices, outcome].mean()
                 discrepancy = abs(left_mean - right_mean)
 
                 if left_mean >= right_mean:
-                    return ' and '.join(conditions), discrepancy
+                    return " and ".join(conditions), discrepancy
                 else:
-                    conditions = [cond.replace('<=', '>') if '<=' in cond else cond.replace('>', '<=') for cond in conditions]
-                    return ' and '.join(conditions), discrepancy
-                
+                    conditions = [
+                        cond.replace("<=", ">") if "<=" in cond else cond.replace(">", "<=") for cond in conditions
+                    ]
+                    return " and ".join(conditions), discrepancy
+
             # Not a leaf node, continue splitting
             feature = features[tree_model.tree_.feature[node]]
             threshold = tree_model.tree_.threshold[node]
@@ -722,13 +762,21 @@ class SMART(BaseModel):
             right_condition = f"{feature} > {threshold}"
 
             # Traverse left and right
-            left_query, left_discrepancy = traverse_tree(tree_model.tree_.children_left[node], depth + 1, conditions + [left_condition])
-            right_query, right_discrepancy = traverse_tree(tree_model.tree_.children_right[node], depth + 1, conditions + [right_condition])
+            left_query, left_discrepancy = traverse_tree(
+                tree_model.tree_.children_left[node], depth + 1, conditions + [left_condition]
+            )
+            right_query, right_discrepancy = traverse_tree(
+                tree_model.tree_.children_right[node], depth + 1, conditions + [right_condition]
+            )
 
             if left_discrepancy == right_discrepancy:
                 return left_query, left_discrepancy
             else:
-                return (left_query, left_discrepancy) if left_discrepancy > right_discrepancy else (right_query, right_discrepancy)
+                return (
+                    (left_query, left_discrepancy)
+                    if left_discrepancy > right_discrepancy
+                    else (right_query, right_discrepancy)
+                )
 
         return traverse_tree()[0]
 
@@ -742,7 +790,7 @@ class SMART(BaseModel):
 
         model.fit(X_dummies, y)
         for group_id, variables in self.subgroups.items():
-            max_difference = float('-inf')
+            max_difference = float("-inf")
             optimal_query = None
 
             # Check if there is only one variable
@@ -794,31 +842,32 @@ class SMART(BaseModel):
         # Filter top
         subgroup_results = {}
         for group, condition in optimal_queries.items():
-
             try:
                 results_group = calculate_group_statistics_string(X, y, model, condition, ohe)
-                significant_result = results_group['p_value_bootstrap'] < alpha
-                subgroup_results[group] = {'results': results_group, 'significant': significant_result}
+                significant_result = results_group["p_value_bootstrap"] < alpha
+                subgroup_results[group] = {"results": results_group, "significant": significant_result}
             except Exception as e:
                 print(f"Error with group {group}: {condition}", e)
                 continue
         # Order subgroups by p-value
-        subgroup_results = sorted(subgroup_results.items(), key=lambda x: x[1]['results']['accuracy_diff'], reverse=True)
+        subgroup_results = sorted(
+            subgroup_results.items(), key=lambda x: x[1]["results"]["accuracy_diff"], reverse=True
+        )
         # Get the top n subgroups
 
         # Filter based on significant to only include when it is significant
-        #subgroup_results = [subgroup for subgroup in subgroup_results if subgroup[1]['significant']]
+        # subgroup_results = [subgroup for subgroup in subgroup_results if subgroup[1]['significant']]
 
         top_subgroups = subgroup_results[:n_groups]
         # Get only the queries of the top n subgroups
-        top_queries = [query[1]['results']['query'] for query in top_subgroups]
+        top_queries = [query[1]["results"]["query"] for query in top_subgroups]
         # Convert to dictionary
-        top_queries = {i:query for i, query in enumerate(top_queries)}
+        top_queries = {i: query for i, query in enumerate(top_queries)}
         return top_queries
 
     def calculate_outcome_difference(self, y, full_y):
         """
-        Calculates the difference in the proportion of the most common outcome 
+        Calculates the difference in the proportion of the most common outcome
         between the subgroup and the full dataset.
 
         :param y: The outcome variable for the subgroup.
@@ -840,9 +889,20 @@ class SMART(BaseModel):
 
         return difference
 
-    def get_optimal_queries(self, X, y, model, outcome='y_failures', min_group_size=10, alpha = 0.1, n_groups=10, test_for_min=True, max_group_size=float('inf')):
+    def get_optimal_queries(
+        self,
+        X,
+        y,
+        model,
+        outcome="y_failures",
+        min_group_size=10,
+        alpha=0.1,
+        n_groups=10,
+        test_for_min=True,
+        max_group_size=float("inf"),
+    ):
         """
-        Generates a list of query strings for splitting the dataframe into two subgroups 
+        Generates a list of query strings for splitting the dataframe into two subgroups
         where the difference in the outcome variable is maximized, based on up to three features.
 
         :param dataframe: A pandas DataFrame containing the data.
@@ -861,18 +921,20 @@ class SMART(BaseModel):
         optimal_queries = {}
         # Get groups
         group_variables = self.subgroups
-        
+
         # Loop through the groups
         for group, condition in group_variables.items():
             # Get the optimal query for each group
-            optimal_query = self.get_optimal_split_query(dataframe, condition, outcome, min_group_size, test_for_min, max_group_size)
+            optimal_query = self.get_optimal_split_query(
+                dataframe, condition, outcome, min_group_size, test_for_min, max_group_size
+            )
             optimal_queries[group] = optimal_query
 
         self.optimal_queries = optimal_queries
 
         # Remove values which are None and which repeat themselves
-        optimal_queries = {k:v for k,v in optimal_queries.items() if v is not None}
-        
+        optimal_queries = {k: v for k, v in optimal_queries.items() if v is not None}
+
         # Loop over each query and if the query already exists, skip. Otherwise, add it to a new dictionary
         optimal_queries_unique = {}
         for group, query in optimal_queries.items():
@@ -880,31 +942,32 @@ class SMART(BaseModel):
                 optimal_queries_unique[group] = query
 
         optimal_queries = optimal_queries_unique
-        
+
         subgroup_results = {}
         for group, condition in optimal_queries.items():
-
             try:
                 results_group = calculate_group_statistics(X, y, model, condition)
-                significant_result = results_group['p_value_bootstrap'] < alpha
-                subgroup_results[group] = {'results': results_group, 'significant': significant_result}
+                significant_result = results_group["p_value_bootstrap"] < alpha
+                subgroup_results[group] = {"results": results_group, "significant": significant_result}
             except Exception as e:
                 print(f"Error with group {group}: {condition}", e)
                 continue
         # Order subgroups by p-value
-        subgroup_results = sorted(subgroup_results.items(), key=lambda x: x[1]['results']['accuracy_diff'], reverse=True)
+        subgroup_results = sorted(
+            subgroup_results.items(), key=lambda x: x[1]["results"]["accuracy_diff"], reverse=True
+        )
         # Get the top n subgroups
 
         top_subgroups = subgroup_results[:n_groups]
         # Get only the queries of the top n subgroups
-        top_queries = [query[1]['results']['query'] for query in top_subgroups]
+        top_queries = [query[1]["results"]["query"] for query in top_subgroups]
         # Convert to dictionary
-        top_queries = {i:query for i, query in enumerate(top_queries)}
+        top_queries = {i: query for i, query in enumerate(top_queries)}
         return top_queries
-        
+
     def calculate_accuracy_difference(self, X_tr, y, model, subgroup_X_tr, subgroup_y):
         """
-        Calculates the accuracy difference between the model's predictions on the full dataset 
+        Calculates the accuracy difference between the model's predictions on the full dataset
         and a specific subgroup.
 
         :param X_tr: Transformed predictor variables of the full dataset.
@@ -926,4 +989,3 @@ class SMART(BaseModel):
         # Compute the accuracy difference
         accuracy_diff = abs(accuracy_dataset - accuracy_subgroup)
         return accuracy_diff
-    
