@@ -179,14 +179,14 @@ lead to substandard results.
 
 col1b, col2b = st.columns(2)
 with col1b:
-    st.markdown("New session settings:")
+    st.markdown("#### New session settings:")
     new_session_name = st.text_input("Session name", value="", placeholder="Leave empty for auto-generated name")
     engine_name = st.selectbox("Select engine", options=ENGINE_MAP.keys())
     st.session_state.new_session_settings["session_name"] = new_session_name if new_session_name != "" else None
     st.session_state.new_session_settings["engine_name"] = engine_name
 
 with col2b:
-    st.markdown("Engine parameters:")
+    st.markdown("#### Engine parameters:")
     engine_params = dict()
     EngineClass = ENGINE_MAP[engine_name]  # type: ignore
     cannot_create = False
@@ -228,9 +228,21 @@ with col2b:
                 index=param.enum_values.index(value_set if value_set is not None else param.default),  # type: ignore
                 disabled=param.disabled if value_set is None else True,
             )
+        elif param.kind == "records":
+            st.markdown(param.name)
+            st.markdown(f"*{param.description}*")
+            disabled = param.records_disabled_keys or []
+            df_edited = st.data_editor(
+                pd.DataFrame(param.default),
+                disabled=disabled,
+                hide_index=True,
+            )
+            engine_params[param.name] = df_edited.to_dict("records")
+            print(engine_params[param.name])
         else:
             raise ValueError(f"Unexpected parameter kind: {param.kind}")
     st.session_state.new_session_settings["engine_params"] = engine_params
+
 if st.button(
     "Start new session ⏵",
     on_click=start_new_session,

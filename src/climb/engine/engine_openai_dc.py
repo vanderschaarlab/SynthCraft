@@ -46,7 +46,7 @@ DEBUG__PRINT_DELTA = False
 # ---
 DEBUG__USE_FILTER_TOOLS = True  # Only True is supported in this engine.
 # ---
-DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET = False
+DEBUG__PRINT_TOOL_FILTERING = False
 
 if DEBUG__USE_FILTER_TOOLS is False:
     raise RuntimeError("DEBUG__USE_FILTER_TOOLS must be True for this engine.")
@@ -2408,6 +2408,18 @@ MESSAGE_OPTIONS = {
 
 # region: === Engine helper functions (may be considered for moving to a separate module) ===
 
+possible_episodes = [
+    {"enabled": True, "episode_id": d["episode_id"], "episode_name": d["episode_name"]}
+    for d in copy.deepcopy(EPISODE_DB)
+]
+PossibleEpisodesParam = EngineParameter(
+    name="possible_episodes",
+    description="List of possible episodes that can be used in the project. Unselect as needed.",
+    kind="records",
+    default=possible_episodes,
+    records_disabled_keys=["episode_id", "episode_name"],
+)
+
 
 def get_all_episode_ids_from_db(episodes_db: List[Dict]) -> List[str]:
     return [ep["episode_id"] for ep in episodes_db]
@@ -3040,7 +3052,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
 
         # Get all the allowed tools, that is, all tools except the excluded ones (based on tool_set engine parameter).
         all_available_tools = list_all_tool_names(filter_tool_names=None)
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+        if DEBUG__PRINT_TOOL_FILTERING:
             print("All available tools:")
             rich.pretty.pprint(all_available_tools)
         tool_set = self.session.engine_params["tool_set"]
@@ -3055,11 +3067,11 @@ class OpenAIDCEngine(OpenAIEngineBase):
         # Go through EPISODE_DB and the cases where tools are set to None, replacing with allowed tools.
         # This is because None represents ALL TOOLS (later in the logic) but we must ensure that ONLY allowed tools
         # # are used.
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+        if DEBUG__PRINT_TOOL_FILTERING:
             print("Allowed tools:")
             rich.pretty.pprint(allowed_tools)
         self.allowed_tools = allowed_tools
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+        if DEBUG__PRINT_TOOL_FILTERING:
             print("Allowed tools:")
             rich.pretty.pprint(allowed_tools)
         # Filter episodes.
@@ -3078,20 +3090,36 @@ class OpenAIDCEngine(OpenAIEngineBase):
         for episode in self.episode_db:
             # If episode has any tools that match exclude_tools, exclude it.
             if any(tool in exclude_tools for tool in episode["tools"]):
-                if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+                if DEBUG__PRINT_TOOL_FILTERING:
                     print(f">>>>>>>> Excluding episode {episode['episode_id']} because of tools: {episode['tools']}")
                 continue
             filtered_episode_ids.append(episode["episode_id"])
         self.episode_db = [ep for ep in self.episode_db if ep["episode_id"] in filtered_episode_ids]
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+        if DEBUG__PRINT_TOOL_FILTERING:
             print("Episode DB after excluded tools have been filtered out:")
+            rich.pretty.pprint(self.episode_db)
+
+        # Filter episodes that are not included in the possible_episodes parameter.
+        possible_episodes = self.session.engine_params["possible_episodes"]
+        filtered_episode_ids = []
+        for episode in possible_episodes:
+            if not episode["enabled"]:
+                if DEBUG__PRINT_TOOL_FILTERING:
+                    print(f">>>>>>>> Excluding episode {episode['episode_id']} because it is not enabled.")
+                continue
+            filtered_episode_ids.append(episode["episode_id"])
+        # print(possible_episode_ids)
+        # raise ValueError
+        self.episode_db = [ep for ep in self.episode_db if ep["episode_id"] in filtered_episode_ids]
+        if DEBUG__PRINT_TOOL_FILTERING:
+            print("Episode DB after filtering out episodes not in possible_episodes:")
             rich.pretty.pprint(self.episode_db)
 
         # Filter the PLAN (set self.plan) to only include episodes whose `episode_id`s are in self.episode_db.
         # (i.e. only include episodes that have not been excluded based on the tool_set parameter).
         self.plan = [ep for ep in PLAN if ep in get_all_episode_ids_from_db(self.episode_db)]
         # NOTE: Must use self.plan, not PLAN in this engine!
-        if DEBUG__PRINT_TOOL_FILTERING_BASED_ON_TOOL_SET:
+        if DEBUG__PRINT_TOOL_FILTERING:
             print("PLAN after filtering out episodes with excluded tools:")
             rich.pretty.pprint(self.plan)
 
@@ -3101,7 +3129,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
     @staticmethod
     def get_engine_parameters() -> List[EngineParameter]:
         parent_params = OpenAIEngineBase.get_engine_parameters()
-        return parent_params + [ToolSetParameter]
+        return parent_params + [ToolSetParameter, PossibleEpisodesParam]
 
     def _set_initial_messages(self, agent: EngineAgent) -> List[Message]:
         if agent.agent_type == "worker":
@@ -4077,7 +4105,7 @@ class AzureOpenAIDCEngine(
     @staticmethod
     def get_engine_parameters() -> List[EngineParameter]:
         parent_params = AzureOpenAIEngineMixin.get_engine_parameters()
-        return parent_params + [ToolSetParameter]
+        return parent_params + [ToolSetParameter, PossibleEpisodesParam]
 
     @staticmethod
     def get_engine_name() -> str:

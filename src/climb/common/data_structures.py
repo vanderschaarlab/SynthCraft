@@ -141,20 +141,21 @@ class Message(pydantic.BaseModel):
         return self.key == other.key
 
 
-EngineParameterValue = Union[str, float, bool]
+EngineParameterValue = Union[str, float, bool, List[Dict]]
 
 
 # TODO: Consistency validation.
 class EngineParameter(pydantic.BaseModel):
     name: str
     description: str
-    kind: Literal["float", "bool", "enum"]
+    kind: Literal["float", "bool", "enum", "records"]
     default: EngineParameterValue
     enum_values: Optional[List[str]] = None
     min_value: Optional[float] = None
     max_value: Optional[float] = None
     set_by_static_method: Optional[str] = None
     disabled: Optional[bool] = False
+    records_disabled_keys: Optional[List[str]] = None
 
 
 InteractionStage = Literal["reason", "output", "await_user_input"]
