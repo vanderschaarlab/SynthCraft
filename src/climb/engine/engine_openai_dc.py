@@ -377,6 +377,9 @@ If so, find out which columns these are. Then generate code to drop the columns 
 only keep the columns that the user wants to keep. If the user provides no preference, do NOT make any changes at this step. \
 Save the modified dataset(s) with the suffix `_user_cols` in the \
 filename.
+
+3. If you did any column exclusion, confirm with the user that there are no more columns to exclude. If so, finish the \
+task, otherwise, work with the user to finalize column removal.
 """,
         "coordinator_guidance": None,
         "worker_guidance": """
@@ -403,6 +406,8 @@ PROVIDE it to the tool unless definitely not possible.
 - After executing the tool, provide the user with a summary of what you see in the EDA. Use your best understanding of \
 data science and machine learning. **DO NOT** make suggestions of what needs to be done next! That will be handled \
 later in the process. **Just summarize your learnings.**
+- Ask the user if they want to discuss the EDA results. If they do, answer their questions as needed. DO NOT make \
+any modifications to the data at this stage, as that will be handled later in the process.
 """,
         "tools": ["EDA"],
     },
