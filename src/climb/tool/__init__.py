@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional
 
 from climb.common.utils import check_extra_available
 
+from .impl.tool_autoprognosis_explainers import AutoprognosisExplainerInvase, AutoprognosisExplainerSymbolicPursuit 
 from .impl.tool_autoprognosis import (
     AutoprognosisClassification,
     AutoprognosisClassificationTrainTest,
@@ -68,6 +69,8 @@ def list_all_tool_names(filter_tool_names: Optional[List[str]] = None) -> List[s
 
 
 _AVAILABLE_TOOLS_LIST = [
+    AutoprognosisExplainerInvase(),
+    AutoprognosisExplainerSymbolicPursuit(),
     AutoprognosisClassification(),
     AutoprognosisRegression(),
     AutoprognosisSubgroupEvaluation(),
