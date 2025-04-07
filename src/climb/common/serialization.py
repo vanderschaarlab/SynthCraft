@@ -10,7 +10,7 @@ from typing import Any, Dict
 
 import matplotlib.figure
 import plotly.graph_objects
-from nutree import Node, Tree
+from nutree import Node, Tree  # pyright: ignore
 
 from . import Message, Session
 from .utils import make_filename_path_safe

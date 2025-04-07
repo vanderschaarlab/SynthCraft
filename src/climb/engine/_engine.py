@@ -4,7 +4,7 @@ import warnings
 from datetime import datetime
 from typing import Any, Callable, Dict, Generator, Iterator, List, Literal, Optional, Tuple, Union, get_args
 
-from nutree import Node, Tree
+from nutree import Node, Tree  # pyright: ignore
 from openai import Stream
 
 from climb.common import (
@@ -226,7 +226,7 @@ class EngineAgent:
         self.agent_type: Agent = agent_type
         self.system_message_template = system_message_template
         self.first_message_content = first_message_content
-        self.first_message_role: Role = first_message_role
+        self.first_message_role: Role = first_message_role  # pyright: ignore
 
         self.set_initial_messages = set_initial_messages
         self.gather_messages = gather_messages

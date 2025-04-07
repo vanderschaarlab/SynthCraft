@@ -1228,7 +1228,7 @@ with main_col_2:
                     )
 
                 # Select the file and show the preview if available.
-                selected_row_idx = files_table.selection["rows"][0] if files_table.selection["rows"] else None
+                selected_row_idx = files_table.selection["rows"][0] if files_table.selection["rows"] else None  # pyright: ignore
                 if selected_row_idx is None:
                     st.markdown("No file selected.")
                     st.markdown("")
@@ -1850,7 +1850,7 @@ def execute_tool(tool_request) -> None:
 
         fully_clear_placeholder(placeholder)
 
-        create_keep_displaying_content(store_under_key="exec_tool", content=stream_out)
+        create_keep_displaying_content(store_under_key="exec_tool", content=stream_out)  # pyright: ignore
 
         list(tool_out_stream)  # Just in case.
         update_debug_panel_ui_comm()
@@ -1873,14 +1873,14 @@ def handle_user_input() -> None:
                 "SIMULATED USER > input_request is not None [= Tool call INPUT]"
             )
             input_request = engine().get_state().ui_controlled.input_request
-            if input_request.kind == "file":
+            if input_request.kind == "file":  # pyright: ignore
                 DUMMY_FILE_PATH = "/mnt/data-fourtb/Dropbox/Work/21. vdS Lab/2. Projects/10. CliMB/4. Data/heart.csv"
                 file_name = os.path.basename(DUMMY_FILE_PATH)
                 # Read the file as bytes.
                 with open(DUMMY_FILE_PATH, "rb") as f:
                     file_content = f.read()
                 # TODO: Handle simulated user file uploads.
-                input_request.received_input = UploadedFileAbstraction(
+                input_request.received_input = UploadedFileAbstraction(  # pyright: ignore
                     name=file_name,  # type: ignore
                     content=file_content,  # type: ignore
                 )
@@ -2033,7 +2033,7 @@ def handle_reason_stream() -> None:
                     with st.spinner(spinner_message):
                         stream_out = st.write_stream(handle_stream(stream))
                 fully_clear_placeholder(placeholder)
-                create_keep_displaying_content(store_under_key="reason_text", content=stream_out)
+                create_keep_displaying_content(store_under_key="reason_text", content=stream_out)  # pyright: ignore
             except ValueError as e:
                 if str(e) == LOADING_INDICATOR_EXC_MSG:
                     # If we happen to detect the LoadingIndicator during handling the stream, show the spinner
@@ -2086,7 +2086,7 @@ def handle_output_code_generation() -> None:
                     stream_out = st.write_stream(code_out_wrapper(output, finished_stl=finished_sentinel))
 
         fully_clear_placeholder(placeholder)
-        create_keep_displaying_content(store_under_key="code_exec", content=stream_out)
+        create_keep_displaying_content(store_under_key="code_exec", content=stream_out)  # pyright: ignore
         list(output)  # Just in case.
 
     rerun_with_state(state="reason")

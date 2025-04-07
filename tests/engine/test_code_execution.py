@@ -34,7 +34,7 @@ def test_run_command(mock_popen: MagicMock, mocker: MockerFixture, tmp_path: pat
     code_execution_stream = list(  # Call list() to consume the generator.
         execute_code(
             code_file_name="code_file_name.py",
-            working_directory=tmp_path / "working_directory",
+            working_directory=tmp_path / "working_directory",  # pyright: ignore
             generated_code="# Nothing, it's mocked",
             dependencies=[],
             conda_path=None,

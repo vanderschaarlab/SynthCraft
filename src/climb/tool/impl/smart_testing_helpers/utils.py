@@ -308,7 +308,7 @@ def mcnemars_test(df, model, query):
     # Perform McNemar's test
     result = mcnemar(table, exact=False, correction=True)
 
-    return result.pvalue
+    return result.pvalue  # pyright: ignore
 
 
 def calculate_weighted_relative_outcomes(df, query):

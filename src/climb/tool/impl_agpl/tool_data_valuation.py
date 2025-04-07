@@ -37,7 +37,7 @@ def knn_shapley_valuation(
     knn = KNeighborsClassifier(n_neighbors=5)
 
     # Create the Utility object
-    utility = Utility(knn, data)
+    utility = Utility(knn, data)  # pyright: ignore
 
     tc.print("Running knn...")
     shapley_values = compute_shapley_values(utility, mode=ShapleyMode.KNN, progress=True)

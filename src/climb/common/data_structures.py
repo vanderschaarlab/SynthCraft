@@ -11,7 +11,7 @@ import matplotlib.figure
 import plotly.graph_objects
 import pydantic
 import rich.pretty
-from nutree import Tree
+from nutree import Tree  # pyright: ignore
 
 from .utils import make_filename_path_safe, truncate_dict_values
 

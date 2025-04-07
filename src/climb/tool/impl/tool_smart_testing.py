@@ -32,7 +32,7 @@ def smart_testing(
         data_path (str): The path to the input CSV file.
         workspace (str): The workspace directory path.
     """
-    workspace = Path(workspace)
+    workspace = Path(workspace)  # pyright: ignore
     df = pd.read_csv(data_path)
 
     # Define features and target
@@ -42,7 +42,7 @@ def smart_testing(
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    model_path = Path(workspace) / model_path
+    model_path = Path(workspace) / model_path  # pyright: ignore
     # save_model_to_file(model_path, out)
 
     # Step 2: Instantiate and train a logistic regression model
@@ -89,7 +89,7 @@ def smart_testing(
     recommendations = subgroup_finder.generate_model_report(X_train, y_train, X_test, y_test, model)
 
     tc.set_returns(
-        tool_return=(recommendations),
+        tool_return=(recommendations),  # pyright: ignore
     )
 
 

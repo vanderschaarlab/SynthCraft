@@ -1,7 +1,7 @@
 import os
 import re
 from difflib import SequenceMatcher
-from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar
+from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar, Union
 
 import pandas as pd
 from ruamel.yaml import YAML
@@ -23,7 +23,7 @@ def check_extra_available() -> bool:
     return EXTRA_AVAILABLE
 
 
-def raise_if_extra_not_available() -> NoReturn:
+def raise_if_extra_not_available() -> Union[NoReturn, None]:
     if not check_extra_available():
         raise NotImplementedError(
             "This code requires the installation of the `[extra]` dependencies. Please read and understand the licensing "

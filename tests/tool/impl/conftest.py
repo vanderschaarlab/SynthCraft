@@ -137,7 +137,7 @@ def df_survival_path(tmp_workspace):
 
 
 @pytest.fixture
-def df_missing_path(tmp_workspace) -> pd.DataFrame:
+def df_missing_path(tmp_workspace) -> str:
     """Test dataframe with missing values in its columns"""
 
     np.random.seed(0)
