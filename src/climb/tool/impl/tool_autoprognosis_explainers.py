@@ -13,6 +13,55 @@ from autoprognosis.plugins.explainers import Explainers
 from ..tool_comms import ToolCommunicator, ToolReturnIter, execute_tool
 from ..tools import ToolBase
 
+# TODO: abstract this into a shared module
+def clean_dataframe(df, unique_threshold=15):
+    # Identify column data types
+    inferred_categorical_columns = []
+    inferred_numerical_columns = []
+    inferred_boolean_columns = []
+
+    for col in df.columns:
+        unique_values = df[col].dropna().unique()  # Drop NA to get unique values
+        num_unique_values = len(unique_values)
+
+        if df[col].dtype == "bool":
+            inferred_boolean_columns.append(col)
+        elif num_unique_values < unique_threshold or df[col].dtype == "object":
+            inferred_categorical_columns.append(col)
+        elif pd.api.types.is_numeric_dtype(df[col]):
+            inferred_numerical_columns.append(col)
+        else:
+            # Handle mixed or unexpected data types
+            try:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+                inferred_numerical_columns.append(col)
+            except ValueError:
+                inferred_categorical_columns.append(col)
+
+    numerical_columns = [
+        col
+        for col in inferred_numerical_columns
+        if col not in inferred_categorical_columns and col not in inferred_boolean_columns
+    ]
+    categorical_columns = inferred_categorical_columns
+    boolean_columns = inferred_boolean_columns
+
+    # Convert categorical columns to category indices
+    for col in categorical_columns:
+        df[col] = pd.Categorical(df[col]).codes
+
+    # Clean numerical columns
+    for col in numerical_columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+        # Handle missing values - example: fill with the median
+        df[col].fillna(df[col].median(), inplace=True)
+
+    # Convert boolean columns to integers
+    for col in boolean_columns:
+        df[col] = df[col].astype(int)
+
+    return df
+
 # ----------------------------------------------
 # INVASE Explainer Tool
 # ----------------------------------------------
@@ -32,6 +81,7 @@ def autoprognosis_explainer_invase(
     model = load_model_from_file(model_file_path)
     tc.print("Loaded autoprognosis model from file")
     df = pd.read_csv(data_file_path)
+    df = clean_dataframe(df)
     X = df.drop(columns=[target_variable])
     y = df[target_variable]
     if feature_names is None:
@@ -216,6 +266,7 @@ def autoprognosis_explainer_symbolic_pursuit(
     model = load_model_from_file(model_file_path)
     tc.print("Loaded autoprognosis model from file")
     df = pd.read_csv(data_file_path)
+    df = clean_dataframe(df)
     X = df.drop(columns=[target_variable])
     y = df[target_variable]
     if feature_names is None:

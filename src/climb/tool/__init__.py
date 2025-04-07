@@ -13,6 +13,7 @@ from .impl.tool_autoprognosis import (
     AutoprognosisSurvivalTrainTest,
 )
 from .impl.tool_balance_data import BalanceData
+from .impl.tool_conformal_prediction import ConformalPrediction
 from .impl.tool_data_centric import DataIQInsights
 from .impl.tool_data_suite import DataSuiteInsights
 from .impl.tool_descriptive_stats import DescriptiveStatistics
@@ -79,6 +80,7 @@ _AVAILABLE_TOOLS_LIST = [
     AutoprognosisRegressionTrainTest(),
     AutoprognosisSurvivalTrainTest(),
     BorutaFeatureSelection(),
+    ConformalPrediction(),
     DataIQInsights(),
     DescriptiveStatistics(),
     ExploratoryDataAnalysis(),
