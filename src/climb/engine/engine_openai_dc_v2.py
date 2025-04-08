@@ -1006,7 +1006,7 @@ Make sure to use the latest versions of the training and test datasets. The tool
 or intervals (for regression) in a user-friendly DataFrame format.
 If you have both a train and test dataset, pass them both to the tool. If you only have a train dataset, pass it to the tool. Do not guess what the test dataset is.
     """,
-        "tools": ["conformal_prediction"]
+        "tools": ["conformal_prediction"],
     },
     {
         "episode_id": "MLE_1",

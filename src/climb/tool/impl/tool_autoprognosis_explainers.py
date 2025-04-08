@@ -1,17 +1,18 @@
-import os
-import json
 import copy
+import json
+import os
 from typing import Any, Dict, List, Optional
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-from autoprognosis.utils.serialization import load_model_from_file
 from autoprognosis.plugins.explainers import Explainers
+from autoprognosis.utils.serialization import load_model_from_file
 
 from ..tool_comms import ToolCommunicator, ToolReturnIter, execute_tool
 from ..tools import ToolBase
+
 
 # TODO: abstract this into a shared module
 def clean_dataframe(df, unique_threshold=15):
@@ -62,6 +63,7 @@ def clean_dataframe(df, unique_threshold=15):
 
     return df
 
+
 # ----------------------------------------------
 # INVASE Explainer Tool
 # ----------------------------------------------
@@ -108,8 +110,8 @@ def autoprognosis_explainer_invase(
             n_folds=n_folds,
             n_epoch=n_epoch,
             task_type=task_type,
-            eval_times=eval_times,       # automatically computed evaluation times
-            time_to_event=df[time_variable]  # pass the time-to-event values
+            eval_times=eval_times,  # automatically computed evaluation times
+            time_to_event=df[time_variable],  # pass the time-to-event values
         )
     else:
         # For classification (or other supported tasks)
@@ -292,8 +294,8 @@ def autoprognosis_explainer_symbolic_pursuit(
             prefit=prefit,
             n_epoch=n_epoch,
             subsample=subsample,
-            eval_times=eval_times,         # computed evaluation horizons
-            time_to_event=df[time_variable]  # pass the actual time-to-event values
+            eval_times=eval_times,  # computed evaluation horizons
+            time_to_event=df[time_variable],  # pass the actual time-to-event values
         )
     else:
         tc.print("Fitting Explainer")
@@ -319,7 +321,7 @@ def autoprognosis_explainer_symbolic_pursuit(
         cmap="coolwarm",
         fmt=".4f",
         xticklabels=feature_names,
-        yticklabels=[f"Instance {i+1}" for i in range(np.array(symbolic_explanation_list).shape[0])]
+        yticklabels=[f"Instance {i+1}" for i in range(np.array(symbolic_explanation_list).shape[0])],
     )
     ax.set_title("Symbolic Explanation Heatmap")
     feature_importance = plt.gcf()
