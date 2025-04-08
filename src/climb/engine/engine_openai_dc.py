@@ -991,7 +991,7 @@ this may be the case, and what needs to be done to improve model performance. Pr
         "selection_condition": None,
         "episode_name": "Conformal Prediction for Model Uncertainty",
         "episode_details": """
-- This episode applies conformal prediction to a pre-trained model to quantify prediction uncertainty. Explain the concept of corformal prediction to the user.
+- This episode applies conformal prediction to a pre-trained model to quantify prediction uncertainty. Explain the concept of conformal prediction to the user.
 - Ask the user what miscoverage level they would like to use for the conformal prediction. Tell the user that 0.05 means a 95% confidence interval and the  default is 0.1.
 - Summon the `conformal_prediction` tool with the user suggested miscoverage level to generate prediction sets (for classification and survival) or intervals (for regression).
     """,
