@@ -1,7 +1,7 @@
 # Imports
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -80,7 +80,7 @@ def cleanlab_outlier_detection(
     cleaned_file_path: str,
     target_variable: str,
     workspace: str,
-    time_variable: str = None,
+    time_variable: Optional[str] = None,
     task_type: str = "classification",
 ) -> None:
     if task_type not in ["classification", "survival_analysis"]:
@@ -90,9 +90,9 @@ def cleanlab_outlier_detection(
 
     # Get the data and target variable
     tc.print("Loading the data...")
-    workspace = Path(workspace)
-    data_file_path = workspace / data_file_path
-    cleaned_file_path = workspace / cleaned_file_path
+    workspace = Path(workspace)  # pyright: ignore
+    data_file_path = workspace / data_file_path  # pyright: ignore
+    cleaned_file_path = workspace / cleaned_file_path  # pyright: ignore
     df = pd.read_csv(data_file_path)
 
     # Save the original data for later
@@ -182,7 +182,11 @@ def cleanlab_outlier_detection(
     plt.figure()
     plt.hist(average_ood_scores, bins=50, alpha=0.7, color="skyblue", edgecolor="black")
     plt.axvline(
-        low_threshold, color="green", linestyle="dashed", linewidth=2, label=f"5th Percentile ({low_threshold:.4f})"
+        low_threshold,  # pyright: ignore
+        color="green",
+        linestyle="dashed",
+        linewidth=2,
+        label=f"5th Percentile ({low_threshold:.4f})",
     )
     plt.title("Distribution of Averaged OOD Scores with Low Threshold")
     plt.xlabel("OOD Score")

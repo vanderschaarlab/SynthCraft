@@ -146,6 +146,7 @@ def autoprognosis_classification(
         workspace=Path(workspace),
         hooks=BasicProgressReport(workspace, task="classification"),
         score_threshold=SCORE_THRESHOLD,
+        sample_for_search=False,
     )
 
     tc.print("Running the classification study, this may take several minutes...")
@@ -372,6 +373,7 @@ def autoprognosis_regression(
         workspace=Path(workspace),
         hooks=BasicProgressReport(workspace, task="regression"),
         score_threshold=SCORE_THRESHOLD,
+        sample_for_search=False,
     )
 
     tc.print("Running the regression study, this may take several minutes...")
@@ -581,6 +583,7 @@ def autoprognosis_survival(
         # ^ NOTE.
         workspace=Path(workspace),
         hooks=BasicProgressReport(workspace, task="survival"),
+        sample_for_search=False,
     )
 
     tc.print("Running the survival analysis study, this may take several minutes...")
@@ -976,6 +979,7 @@ def autoprognosis_classification_train_test(
         workspace=Path(workspace),
         hooks=BasicProgressReport(workspace, task="classification"),
         score_threshold=SCORE_THRESHOLD,
+        sample_for_search=False,
     )
 
     tc.print("Running the classification study, this may take several minutes...")
@@ -1011,11 +1015,13 @@ def autoprognosis_classification_train_test(
         pretrained=True,
     )
     ev_readable = json.dumps(ev["str"], indent=2)
+    columns_ordered = list(df.columns)
     # tc.print(f"Evaluation results:\n\n{ev_readable}")
 
     if test_data_path:
         tc.print("Evaluating the model on the test data...")
         df_test = pd.read_csv(test_data_path)
+        df_test = df_test[columns_ordered]  # Ensure the test data has the same columns as the training data.
         ev_test = evaluate_estimator(
             [model] * n_folds,
             df_test[[c for c in df_test.columns if c != target_variable]],
@@ -1254,6 +1260,7 @@ def autoprognosis_regression_train_test(
         workspace=Path(workspace),
         hooks=BasicProgressReport(workspace, task="regression"),
         score_threshold=SCORE_THRESHOLD,
+        sample_for_search=False,
     )
 
     tc.print("Running the regression study, this may take several minutes...")
@@ -1289,10 +1296,12 @@ def autoprognosis_regression_train_test(
         pretrained=True,
     )
     ev_readable = json.dumps(ev["str"], indent=2)
+    columns_ordered = list(df.columns)
 
     if test_data_path:
         tc.print("Evaluating the model on the test data...")
         df_test = pd.read_csv(test_data_path)
+        df_test = df_test[columns_ordered]  # Ensure the test data has the same columns as the training data.
         ev_test = evaluate_regression(
             [model] * n_folds,
             df_test[[c for c in df_test.columns if c != target_variable]],
@@ -1495,6 +1504,7 @@ def autoprognosis_survival_train_test(
         # ^ NOTE.
         workspace=Path(workspace),
         hooks=BasicProgressReport(workspace, task="survival"),
+        sample_for_search=False,
     )
 
     tc.print("Running the survival analysis study, this may take several minutes...")
@@ -1543,10 +1553,12 @@ proportion of `predicted_risk_sore > 0.5`
 
 """
     ev_readable = json.dumps(ev["str"], indent=2)
+    columns_ordered = list(df.columns)
 
     if test_data_path:
         tc.print("Evaluating the model on the test data...")
         df_test = pd.read_csv(test_data_path)
+        df_test = df_test[columns_ordered]  # Ensure the test data has the same columns as the training data.
         X_test = df_test.drop([time_variable, target_variable], axis=1)
         T_test = df_test[time_variable]
         Y_test = df_test[target_variable]

@@ -125,7 +125,7 @@ def shap_explainer(
 
     print("Setting up the explainer...")
     try:
-        shap_values = explainer(X_for_shap, max_evals=max_evals)
+        shap_values = explainer(X_for_shap, max_evals=max_evals)  # pyright: ignore
     except ValueError as e:
         if "max_evals" in str(e):
             # Try again with the default max_evals.

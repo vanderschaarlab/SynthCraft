@@ -78,7 +78,7 @@ def data_suite_insights(
         data_file_path (str): The path to the input CSV file.
         workspace (str): The workspace directory path.
     """
-    workspace = Path(workspace)
+    workspace = Path(workspace)  # pyright: ignore
     # Load the data
     df = pd.read_csv(data_file_path)
     df = clean_dataframe(df)
@@ -160,7 +160,7 @@ def data_suite_insights(
         df_large_ci["Cluster"] = cluster_model.labels_
         # Calculate mean of each feature for each cluster
         cluster_means = df_large_ci.groupby("Cluster")[all_features].mean()
-        cluster_means.reset_index(inplace=True).to_csv(workspace / "Data_suite_examples_to_collect.csv", index=False)
+        cluster_means.reset_index(inplace=True).to_csv(workspace / "Data_suite_examples_to_collect.csv", index=False)  # pyright: ignore
 
         tc.set_returns(
             tool_return=(

@@ -45,15 +45,15 @@ def feature_extraction_from_text(
         nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
     except OSError:
         # If the model is not found, download it
-        from spacy.cli import download
+        from spacy.cli import download  # pyright: ignore
 
         download("en_core_web_sm")
         nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
 
     # Load the data
-    workspace = Path(workspace)
-    data_file_path = workspace / data_file_path
-    extracted_data_file_path = workspace / extracted_data_file_path
+    workspace = Path(workspace)  # pyright: ignore
+    data_file_path = workspace / data_file_path  # pyright: ignore
+    extracted_data_file_path = workspace / extracted_data_file_path  # pyright: ignore
     df = pd.read_csv(data_file_path)
     # Create a copy of the DataFrame to avoid modifying the original
     df_original = df.copy()
@@ -70,10 +70,10 @@ def feature_extraction_from_text(
     tc.print(f"Extracting topics from free text fields in the DataFrame using these concepts: \n{topics_dict}")
 
     # Initialize a dictionary to count the number of matches per field
-    field_match_count = {field: 0 for field in topics_dict.keys()}
+    field_match_count = {field: 0 for field in topics_dict.keys()}  # pyright: ignore
 
     # Iterate through each specified field in topics_dict
-    for field, topics in topics_dict.items():
+    for field, topics in topics_dict.items():  # pyright: ignore
         tc.print(f"\nProcessing field: '{field}'")
 
         # Check if the field exists in the DataFrame
@@ -94,7 +94,7 @@ def feature_extraction_from_text(
                 for token in doc:
                     pattern.append({"LEMMA": token.lemma_})
                 matcher.add(sanitized_topic, [pattern])
-                matcher_id_to_topic[matcher.vocab.strings[sanitized_topic]] = sanitized_topic
+                matcher_id_to_topic[matcher.vocab.strings[sanitized_topic]] = sanitized_topic  # pyright: ignore
 
         # Process texts with tqdm for progress visualization
         tc.print(f"\nExtracting topics from {field}...")
@@ -120,7 +120,7 @@ def feature_extraction_from_text(
 
     # Identify all new feature columns based on topics_dict
     new_feature_columns = []
-    for field, topics in topics_dict.items():
+    for field, topics in topics_dict.items():  # pyright: ignore
         for topic in topics.keys():
             sanitized_topic = topic.replace(" ", "_")
             column_name = f"{field}_{sanitized_topic}"
@@ -133,7 +133,7 @@ def feature_extraction_from_text(
             df_original[column] = df[column]
 
     # Drop the original free text fields from df_original
-    df_original.drop(columns=[field for field in topics_dict.keys() if field in df_original.columns], inplace=True)
+    df_original.drop(columns=[field for field in topics_dict.keys() if field in df_original.columns], inplace=True)  # pyright: ignore
 
     # Save the final DataFrame
     df_original.to_csv(extracted_data_file_path, index=False)

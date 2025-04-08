@@ -2793,7 +2793,7 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
 
         worker_messages = filter_messages_by_agent(
             self.get_message_history(),
-            agent_or_tuple=(agent.agent_type, "simulated_user"),
+            agent_or_tuple=(agent.agent_type, "simulated_user"),  # pyright: ignore
             # ^ TODO: Refactor this to avoid special casing.
         )
         historic_worker_messages, last_worker_messages = split_message_list_by_last_new_reasoning_cycle_marker(

@@ -11,7 +11,7 @@ import matplotlib.figure
 import plotly.graph_objects
 import pydantic
 import rich.pretty
-from nutree import Tree
+from nutree import Tree  # pyright: ignore
 
 from .utils import make_filename_path_safe, truncate_dict_values
 
@@ -91,6 +91,7 @@ class Message(pydantic.BaseModel):
     agent: Agent = "worker"
 
     new_reasoning_cycle: bool = False
+    summary_message: bool = False
 
     # --- Pure text ---
     text: Optional[str]

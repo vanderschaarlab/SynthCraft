@@ -45,7 +45,7 @@ def test_tool_communicator_set_returns():
     user_report = ["Report line 1", "Report line 2"]
     files_in = ["input.txt"]
     files_out = ["output.txt"]
-    tc.set_returns(tool_return, user_report, files_in, files_out)
+    tc.set_returns(tool_return, user_report, files_in, files_out)  # pyright: ignore
     # Retrieve the ToolOutput from the queue
     output = tc.comm_queue.get_nowait()
     assert isinstance(output, ToolOutput)

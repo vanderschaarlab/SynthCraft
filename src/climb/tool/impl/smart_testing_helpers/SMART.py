@@ -167,20 +167,20 @@ class SMART(BaseModel):
         # Evaluate feasibility
         if evaluate_feasibility:
             feasibility_response = self._feasibility_check(unique_values, context, context_target)
-            if feasibility_response.lower().strip() == "yes":
+            if feasibility_response.lower().strip() == "yes":  # pyright: ignore
                 print("Group discovery is possible. Discovering subgroups...")
-            elif feasibility_response.lower().strip() == "no":
+            elif feasibility_response.lower().strip() == "no":  # pyright: ignore
                 print("No groups discovered")
                 self._subgroups = {}
                 self._subgroup_cache[cache_key] = self._subgroups
 
                 return self
             else:
-                print(f"The response from the feasibility status is: {feasibility_response.lower().strip()}")
+                print(f"The response from the feasibility status is: {feasibility_response.lower().strip()}")  # pyright: ignore
 
-        # Assuming that the task is feasible, generating hyptheses
+        # Assuming that the task is feasible, generating hypotheses
         hypotheses = self._get_llm_response(task)
-        self._hypotheses = hypotheses
+        self._hypotheses = hypotheses  # pyright: ignore
 
         # Operationalizing the hypotheses
         operationalization_prompt = self._construct_operationalization_prompt(
@@ -196,7 +196,7 @@ class SMART(BaseModel):
         pattern = r"\{.*?\}"
 
         try:
-            summary_dict = re.findall(pattern, summary_dict, re.DOTALL)[0]
+            summary_dict = re.findall(pattern, summary_dict, re.DOTALL)[0]  # pyright: ignore
             self._subgroups = ast.literal_eval(summary_dict)
 
         except Exception:
@@ -204,14 +204,14 @@ class SMART(BaseModel):
             if self.verbose:
                 print(correction_prompt)
             response_correction = self._get_llm_response(correction_prompt)
-            summary_dict = re.findall(pattern, response_correction, re.DOTALL)[0]
+            summary_dict = re.findall(pattern, response_correction, re.DOTALL)[0]  # pyright: ignore
             self._subgroups = ast.literal_eval(summary_dict)
 
         # Adjust the subgroup queries
         self._adjust_subgroup_queries(X)
 
         # Cache the subgroup findings
-        self._subgroup_cache[cache_key] = self._subgroups
+        self._subgroup_cache[cache_key] = self._subgroups  # pyright: ignore
         return self
 
     def find_subgroup_variables(
@@ -238,7 +238,7 @@ class SMART(BaseModel):
         self.task = task
 
         hypotheses = self._get_llm_response(task)
-        self._hypotheses = hypotheses
+        self._hypotheses = hypotheses  # pyright: ignore
 
         # Operationalizing the hypotheses
         operationalization_prompt = self._construct_operationalization_subgroups(
@@ -250,26 +250,26 @@ class SMART(BaseModel):
         pattern = r"\{.*?\}"
 
         try:
-            summary_dict = re.findall(pattern, operationalizations, re.DOTALL)[0]
+            summary_dict = re.findall(pattern, operationalizations, re.DOTALL)[0]  # pyright: ignore
             self._subgroups = ast.literal_eval(summary_dict)
             # Loop and ensure all of the subgroups are lists. If not, convert to lists.
-            for key, value in self._subgroups.items():
+            for key, value in self._subgroups.items():  # pyright: ignore
                 if not isinstance(value, list):
-                    self._subgroups[key] = [value]
+                    self._subgroups[key] = [value]  # pyright: ignore
 
         except Exception:
             correction_prompt = f"""The following is a dictionary that contains the subgroups. Return ONLY the dictionary with no additional text before or after. {operationalizations}"""
             if self.verbose:
                 print(correction_prompt)
             response_correction = self._get_llm_response(correction_prompt)
-            summary_dict = re.findall(pattern, response_correction, re.DOTALL)[0]
+            summary_dict = re.findall(pattern, response_correction, re.DOTALL)[0]  # pyright: ignore
             self._subgroups = ast.literal_eval(summary_dict)
             # Loop and ensure all of the subgroups are lists. If not, convert to lists.
-            for key, value in self._subgroups.items():
+            for key, value in self._subgroups.items():  # pyright: ignore
                 if not isinstance(value, list):
-                    self._subgroups[key] = [value]
+                    self._subgroups[key] = [value]  # pyright: ignore
         # Cache findings if not cached
-        self._subgroup_cache[cache_key] = self._subgroups
+        self._subgroup_cache[cache_key] = self._subgroups  # pyright: ignore
         return self
 
     def predict(self, X: pd.DataFrame) -> pd.DataFrame:
@@ -281,7 +281,7 @@ class SMART(BaseModel):
         """
         # Check if all column names in the dictionary conditions are valid
         valid_columns = set(X.columns)
-        for group, condition in self._subgroups.items():
+        for group, condition in self._subgroups.items():  # pyright: ignore
             # Extract column names from the condition
             columns_in_condition = [word for word in condition.split() if word in valid_columns]
             if not columns_in_condition:
@@ -290,7 +290,7 @@ class SMART(BaseModel):
         # TODO: Check if values in the dictionary exist in the DataFrame
 
         # Create group columns
-        for group, condition in self._subgroups.items():
+        for group, condition in self._subgroups.items():  # pyright: ignore
             try:
                 indices_condition = X.query(condition).index
                 bool_condition = X.index.isin(indices_condition)
@@ -319,7 +319,7 @@ class SMART(BaseModel):
             """
             previous_response = self._get_llm_response(selfrefine_task, system_message=system_message)
 
-            self._selfrefine_steps[iter_] = previous_response
+            self._selfrefine_steps[iter_] = previous_response  # pyright: ignore
 
         return previous_response
 
@@ -450,7 +450,7 @@ class SMART(BaseModel):
 
         unique_values = self._unique_values
 
-        for group, condition in list(self._subgroups.items())[:n_subgroups]:
+        for group, condition in list(self._subgroups.items())[:n_subgroups]:  # pyright: ignore
             try:
                 # Check if the condition yields any rows
                 if len(X.query(condition)) == 0:
@@ -459,7 +459,7 @@ class SMART(BaseModel):
                     adjusted_condition = self._get_llm_response(adjustment_prompt)
 
                     # Update the condition
-                    self._subgroups[group] = adjusted_condition
+                    self._subgroups[group] = adjusted_condition  # pyright: ignore
                     print("Primary condition: ", condition)
                     print("Adjusted condition: ", adjusted_condition)
             except Exception as e:
@@ -467,13 +467,13 @@ class SMART(BaseModel):
 
                 # Call LLM to adjust the condition
                 print("Adjusting condition...")
-                unique_values_adj = {k: v for k, v in unique_values.items() if k in condition}
+                unique_values_adj = {k: v for k, v in unique_values.items() if k in condition}  # pyright: ignore
 
                 adjustment_prompt = self._construct_adjustment_prompt(condition, unique_values_adj)
                 adjusted_condition = self._get_llm_response(adjustment_prompt)
                 # TODO - make this part more robust.
                 try:
-                    X.query(adjusted_condition)
+                    X.query(adjusted_condition)  # pyright: ignore
                 except Exception as e:
                     adjusted_condition = clean_query_string(adjusted_condition)
                     # Check if the condition has any strings assuming it is a single condition
@@ -483,7 +483,7 @@ class SMART(BaseModel):
                 print("Primary condition: ", condition)
                 print("Adjusted condition: ", adjusted_condition)
                 # Update the condition
-                self._subgroups[group] = adjusted_condition
+                self._subgroups[group] = adjusted_condition  # pyright: ignore
 
     def _construct_adjustment_prompt(self, condition, unique_values):
         """
@@ -525,7 +525,7 @@ class SMART(BaseModel):
         operationalizations = []
 
         # Initialize a counter for operationalizations
-        subgroup_keys = list(subgroups.keys())
+        subgroup_keys = list(subgroups.keys())  # pyright: ignore
         subgroup_index = 0
 
         # Process each line to extract hypothesis and justification
@@ -544,7 +544,7 @@ class SMART(BaseModel):
                 # Assign operationalization if available
                 if subgroup_index < len(subgroup_keys):
                     subgroup_key = subgroup_keys[subgroup_index]
-                    operationalization = subgroups[subgroup_key]
+                    operationalization = subgroups[subgroup_key]  # pyright: ignore
                     operationalizations.append(operationalization)
                     subgroup_index += 1
                 else:
@@ -640,9 +640,9 @@ class SMART(BaseModel):
         )
 
         # Updating the hypotheses attribute
-        self._updated_hypotheses = new_hypotheses
+        self._updated_hypotheses = new_hypotheses  # pyright: ignore
 
-        return new_hypotheses
+        return new_hypotheses  # pyright: ignore
 
     def revise_fit(self, new_context, X):
         unique_values = self._unique_values
@@ -661,7 +661,7 @@ class SMART(BaseModel):
         pattern = r"\{.*?\}"
 
         try:
-            summary_dict = re.findall(pattern, summary_dict, re.DOTALL)[0]
+            summary_dict = re.findall(pattern, summary_dict, re.DOTALL)[0]  # pyright: ignore
             subgroups = ast.literal_eval(summary_dict)
 
         except Exception:
@@ -669,7 +669,7 @@ class SMART(BaseModel):
             if self.verbose:
                 print(correction_prompt)
             response_correction = self._get_llm_response(correction_prompt)
-            summary_dict = re.findall(pattern, response_correction, re.DOTALL)[0]
+            summary_dict = re.findall(pattern, response_correction, re.DOTALL)[0]  # pyright: ignore
             subgroups = ast.literal_eval(summary_dict)
 
         return subgroups
@@ -704,7 +704,9 @@ class SMART(BaseModel):
 
         # Function to recursively traverse the tree and find the optimal split
         def traverse_tree(node=0, depth=0, conditions=[]):
-            if tree_model.tree_.children_left[node] == tree_model.tree_.children_right[node]:  # Leaf node
+            if (
+                tree_model.tree_.children_left[node] == tree_model.tree_.children_right[node]  # pyright: ignore
+            ):  # Leaf node
                 if not conditions:  # Check for empty conditions
                     return None, float("-inf")
                 # Evaluate split
@@ -755,18 +757,22 @@ class SMART(BaseModel):
                     return " and ".join(conditions), discrepancy
 
             # Not a leaf node, continue splitting
-            feature = features[tree_model.tree_.feature[node]]
-            threshold = tree_model.tree_.threshold[node]
+            feature = features[tree_model.tree_.feature[node]]  # pyright: ignore
+            threshold = tree_model.tree_.threshold[node]  # pyright: ignore
 
             left_condition = f"{feature} <= {threshold}"
             right_condition = f"{feature} > {threshold}"
 
             # Traverse left and right
             left_query, left_discrepancy = traverse_tree(
-                tree_model.tree_.children_left[node], depth + 1, conditions + [left_condition]
+                tree_model.tree_.children_left[node],  # pyright: ignore
+                depth + 1,
+                conditions + [left_condition],
             )
             right_query, right_discrepancy = traverse_tree(
-                tree_model.tree_.children_right[node], depth + 1, conditions + [right_condition]
+                tree_model.tree_.children_right[node],  # pyright: ignore
+                depth + 1,
+                conditions + [right_condition],
             )
 
             if left_discrepancy == right_discrepancy:
@@ -789,7 +795,7 @@ class SMART(BaseModel):
         X_dummies.index = X.index
 
         model.fit(X_dummies, y)
-        for group_id, variables in self.subgroups.items():
+        for group_id, variables in self.subgroups.items():  # pyright: ignore
             max_difference = float("-inf")
             optimal_query = None
 
@@ -828,7 +834,7 @@ class SMART(BaseModel):
                 subgroup_X = X.query(query)
                 if len(subgroup_X) >= min_group_size:
                     subgroup_y = y[subgroup_X.index]
-                    subgroup_X_ohe = pd.DataFrame(ohe.transform(subgroup_X), columns=ohe.get_feature_names_out())
+                    subgroup_X_ohe = pd.DataFrame(ohe.transform(subgroup_X), columns=ohe.get_feature_names_out())  # pyright: ignore
                     subgroup_X_ohe.index = subgroup_X.index
                     accuracy_diff = self.calculate_accuracy_difference(X_dummies, y, model, subgroup_X_ohe, subgroup_y)
 
@@ -923,7 +929,7 @@ class SMART(BaseModel):
         group_variables = self.subgroups
 
         # Loop through the groups
-        for group, condition in group_variables.items():
+        for group, condition in group_variables.items():  # pyright: ignore
             # Get the optimal query for each group
             optimal_query = self.get_optimal_split_query(
                 dataframe, condition, outcome, min_group_size, test_for_min, max_group_size

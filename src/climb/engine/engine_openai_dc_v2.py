@@ -991,7 +991,7 @@ this may be the case, and what needs to be done to improve model performance. Pr
         "selection_condition": None,
         "episode_name": "Conformal Prediction for Model Uncertainty",
         "episode_details": """
-- This episode applies conformal prediction to a pre-trained model to quantify prediction uncertainty. Explain the concept of corformal prediction to the user.
+- This episode applies conformal prediction to a pre-trained model to quantify prediction uncertainty. Explain the concept of conformal prediction to the user.
 - Ask the user what miscoverage level they would like to use for the conformal prediction. Tell the user that 0.05 means a 95% confidence interval and the  default is 0.1.
 - Summon the `conformal_prediction` tool with the user suggested miscoverage level to generate prediction sets (for classification and survival) or intervals (for regression).
     """,
@@ -3015,7 +3015,7 @@ EXCLUDE_DEFAULT = ADDITIONAL_TOOLS["full"] + ADDITIONAL_TOOLS["extra"]
 EXCLUDE_FULL = ADDITIONAL_TOOLS["extra"]
 
 
-class OpenAIDCEngine(OpenAIEngineBase):
+class OpenAIDCv2Engine(OpenAIEngineBase):
     def __init__(
         self,
         db: DB,
@@ -3234,6 +3234,10 @@ class OpenAIDCEngine(OpenAIEngineBase):
         if not last_coordinator_messages[0].agent == "coordinator" and last_coordinator_messages[0].role == "system":
             raise ValueError("The last message set did not begin with a coordinator system message.")
 
+        summary_messages = [m for m in last_coordinator_messages if m.summary_message]
+        if len(summary_messages) > 1:
+            raise ValueError(f"There should only be one summary message but found {len(summary_messages)}.")
+
         historic_messages, last_worker_messages = split_message_list_by_last_new_reasoning_cycle_marker(
             historic_messages
         )
@@ -3284,6 +3288,47 @@ class OpenAIDCEngine(OpenAIEngineBase):
         messages_to_process.append(coordinator_system_message)
 
         if historic_messages:
+            if not summary_messages:
+                # ---
+                # TODO: This too will eventually become too long. Need *progressive summarization*.
+                summarize_system_message_text = """
+                Below you will be given a history of messages between previous rounds of worker agents and coordinator agent interacting with a user.
+                Your goal is to summarize this history in a clear way that is useful for the current coordinator agent.
+                RULES:
+                1. Begin your summary with the following text: ### Summary of previous messages.
+                2. Do NOT talk about anything regarding what next steps are, or should be - your ONLY goal is to summarize the messages.
+
+                NOW STARTS THE MESSAGE HISTORY:
+                """
+                messages_to_send_to_openai = [{"role": "system", "content": summarize_system_message_text}]
+                messages_to_send_to_openai += [
+                    self._handle_openai_message_format(m)  # type: ignore
+                    for m in historic_messages
+                    if m.visibility not in ("ui_only", "system_only", "llm_only_ephemeral")
+                ]
+                messages_to_send_to_openai += [
+                    {"role": "system", "content": "END OF MESSAGE HISTORY.\nBegin summarizing."}
+                ]
+                completion_kwargs = dict(
+                    messages=messages_to_send_to_openai,
+                    stream=False,
+                )
+                print(completion_kwargs)
+                out = self.initialize_completion()(**completion_kwargs)
+                summary_text = out.choices[0].message.content
+                # Record summary.
+                _summary_message = Message(
+                    key=KeyGeneration.generate_message_key(),
+                    role="system",
+                    visibility="llm_only",
+                    agent="coordinator",
+                    text=summary_text,
+                    summary_message=True,
+                )
+                self._append_message(_summary_message)
+                summary_messages = [_summary_message]
+                # ---
+
             # <separator>
             messages_to_process.append(
                 # NOTE: This is a FULLY EPHEMERAL message, not stored in the DB.
@@ -3295,7 +3340,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
                 )
             )
             # [historic record] - w/o system messages.
-            messages_to_process.extend(historic_messages)
+            messages_to_process.extend(summary_messages)
 
         if last_worker_messages:
             # <separator>
@@ -3423,6 +3468,11 @@ class OpenAIDCEngine(OpenAIEngineBase):
         )
 
         historic_worker_messages = self.exclude_system_messages(historic_worker_messages)
+
+        summary_messages = [m for m in last_worker_messages if m.summary_message]
+        if len(summary_messages) > 1:
+            raise ValueError(f"There should only be one summary message but found {len(summary_messages)}.")
+
         last_worker_messages = self.exclude_system_messages(last_worker_messages)
         # ^ This will also remove the old system message.
 
@@ -3430,6 +3480,47 @@ class OpenAIDCEngine(OpenAIEngineBase):
         messages_to_process.append(worker_agent_system_message)
 
         if historic_worker_messages:
+            if not summary_messages:
+                # ---
+                # TODO: This too will eventually become too long. Need *progressive summarization*.
+                summarize_system_message_text = """
+                Below you will be given a history of messages between previous rounds of worker agent and user interactions.
+                Your goal is to summarize this history in a clear way that is useful for the current worker agent.
+                RULES:
+                1. Begin your summary with the following text: ### Summary of previous messages
+                2. Do NOT talk about anything regarding what next steps are, or should be - your ONLY goal is to summarize the messages.
+
+                NOW STARTS THE MESSAGE HISTORY:
+                """
+                messages_to_send_to_openai = [{"role": "system", "content": summarize_system_message_text}]
+                messages_to_send_to_openai += [
+                    self._handle_openai_message_format(m)  # type: ignore
+                    for m in historic_worker_messages
+                    if m.visibility not in ("ui_only", "system_only", "llm_only_ephemeral")
+                ]
+                messages_to_send_to_openai += [
+                    {"role": "system", "content": "END OF MESSAGE HISTORY.\nBegin summarizing."}
+                ]
+                completion_kwargs = dict(
+                    messages=messages_to_send_to_openai,
+                    stream=False,
+                )
+                print(completion_kwargs)
+                out = self.initialize_completion()(**completion_kwargs)
+                summary_text = out.choices[0].message.content
+                # Record summary.
+                _summary_message = Message(
+                    key=KeyGeneration.generate_message_key(),
+                    role="system",
+                    visibility="llm_only",
+                    agent="worker",
+                    text=summary_text,
+                    summary_message=True,
+                )
+                self._append_message(_summary_message)
+                summary_messages = [_summary_message]
+                # ---
+
             # <separator>
             messages_to_process.append(
                 # NOTE: This is a FULLY EPHEMERAL message, not stored in the DB.
@@ -3440,8 +3531,10 @@ class OpenAIDCEngine(OpenAIEngineBase):
                     agent="worker",
                 )
             )
+            # ---
+
             # [historic record] - w/o system messages.
-            messages_to_process.extend(historic_worker_messages)
+            messages_to_process.extend(summary_messages)
 
         # <separator>
         messages_to_process.append(
@@ -3791,18 +3884,18 @@ class OpenAIDCEngine(OpenAIEngineBase):
                 first_message_content=MESSAGE_OPTIONS["coordinator"]["first_message_content"],
                 system_message_template=MESSAGE_OPTIONS["coordinator"]["system_message_template"],
                 first_message_role="assistant",
-                set_initial_messages=OpenAIDCEngine._set_initial_messages,  # type: ignore
-                gather_messages=OpenAIDCEngine._gather_messages_coordinator,  # type: ignore
-                dispatch=OpenAIDCEngine._dispatch_coordinator,  # type: ignore
+                set_initial_messages=OpenAIDCv2Engine._set_initial_messages,  # type: ignore
+                gather_messages=OpenAIDCv2Engine._gather_messages_coordinator,  # type: ignore
+                dispatch=OpenAIDCv2Engine._dispatch_coordinator,  # type: ignore
             ),
             worker=EngineAgent(
                 "worker",
                 system_message_template=MESSAGE_OPTIONS["worker"]["system_message_template"],
                 first_message_content=MESSAGE_OPTIONS["worker"]["first_message_content"],
                 first_message_role="assistant",
-                set_initial_messages=OpenAIDCEngine._set_initial_messages,  # type: ignore
-                gather_messages=OpenAIDCEngine._gather_messages_worker,  # type: ignore
-                dispatch=OpenAIDCEngine._dispatch_worker,  # type: ignore
+                set_initial_messages=OpenAIDCv2Engine._set_initial_messages,  # type: ignore
+                gather_messages=OpenAIDCv2Engine._gather_messages_worker,  # type: ignore
+                dispatch=OpenAIDCv2Engine._dispatch_worker,  # type: ignore
             ),
         )
         as_dict = self.agents_.model_dump()  # {"coordinator": coordinator EngineAgent, ...}
@@ -3813,7 +3906,7 @@ class OpenAIDCEngine(OpenAIEngineBase):
 
     @staticmethod
     def get_engine_name() -> str:
-        return "openai_dc"
+        return "openai_dc_v2"
 
     def project_completed(self) -> bool:
         return d2m(self.get_state().agent_state["coordinator"], CoordinatorCotState).whole_project_completed
@@ -4095,9 +4188,9 @@ class OpenAIDCEngine(OpenAIEngineBase):
         return message
 
 
-class AzureOpenAIDCEngine(
+class AzureOpenAIDCv2Engine(
     AzureOpenAIEngineMixin,  # Mixing needs to come first to override the methods correctly.
-    OpenAIDCEngine,
+    OpenAIDCv2Engine,
 ):
     def __init__(
         self,
@@ -4116,7 +4209,7 @@ class AzureOpenAIDCEngine(
             azure_openai_config=azure_openai_config,
         )
         # Initialize the Base class.
-        OpenAIDCEngine.__init__(
+        OpenAIDCv2Engine.__init__(
             self,
             db=db,
             session=session,
@@ -4133,4 +4226,4 @@ class AzureOpenAIDCEngine(
 
     @staticmethod
     def get_engine_name() -> str:
-        return "azure_openai_dc"
+        return "azure_openai_dc_v2"

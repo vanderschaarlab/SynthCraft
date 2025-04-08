@@ -258,7 +258,7 @@ def hyperimpute_impute_train_test(
             f"The imputed data has been saved to {training_imputed_file_path}"
             + (
                 f"\n\nTest dataset:"
-                f"{n_missing_before_test - n_missing_after_test} missing values were imputed. "
+                f"{n_missing_before_test - n_missing_after_test} missing values were imputed. "  # pyright: ignore
                 f"The imputed data has been saved to {test_imputed_file_path}"
                 if test_data_path
                 else ""

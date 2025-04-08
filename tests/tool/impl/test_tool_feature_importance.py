@@ -35,7 +35,7 @@ def test_shap_explainer_classification(tmp_workspace, df_classification_path):
         data_file_path=df_classification_path,
         model_path=model_path,
         target_variable="target",
-        problem_type=None,
+        problem_type=None,  # pyright: ignore
         workspace=tmp_workspace,
     )
 

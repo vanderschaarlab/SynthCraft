@@ -13,8 +13,8 @@ from ..tools import ToolBase
 
 def compute_sampling_strategy(y, method, desired_ratio=1.0):
     class_counts = Counter(y)
-    majority_class = max(class_counts, key=class_counts.get)
-    minority_class = min(class_counts, key=class_counts.get)
+    majority_class = max(class_counts, key=class_counts.get)  # pyright: ignore
+    minority_class = min(class_counts, key=class_counts.get)  # pyright: ignore
 
     majority_count = class_counts[majority_class]
     minority_count = class_counts[minority_class]
@@ -149,22 +149,22 @@ def balance_data(
 
     if method == "smote":
         sampler = SMOTENC(
-            sampling_strategy=sampling_strategy,
+            sampling_strategy=sampling_strategy,  # pyright: ignore
             categorical_features=categorical_features,
             random_state=42,
         )
     elif method == "oversample":
-        sampler = RandomOverSampler(sampling_strategy=sampling_strategy)
+        sampler = RandomOverSampler(sampling_strategy=sampling_strategy)  # pyright: ignore
     elif method == "undersample":
-        sampler = RandomUnderSampler(sampling_strategy=sampling_strategy)
+        sampler = RandomUnderSampler(sampling_strategy=sampling_strategy)  # pyright: ignore
     elif method == "combine":
         # First, apply under-sampling, then apply SMOTE
         undersampler = RandomUnderSampler(
-            sampling_strategy=sampling_strategy.get("undersample", 0.5),
+            sampling_strategy=sampling_strategy.get("undersample", 0.5),  # pyright: ignore
             random_state=42,
         )
         sampler = SMOTENC(
-            sampling_strategy=sampling_strategy.get("smote", "auto"),
+            sampling_strategy=sampling_strategy.get("smote", "auto"),  # pyright: ignore
             categorical_features=categorical_features,
             random_state=42,
         )
@@ -175,10 +175,10 @@ def balance_data(
     tc.print("Applying the re-balancing algorithm...")
     if method == "combine":
         # First apply undersampling, then SMOTENC
-        X_under, y_under = undersampler.fit_resample(X_cleaned, y_cleaned)
-        X_resampled, y_resampled = sampler.fit_resample(X_under, y_under)
+        X_under, y_under = undersampler.fit_resample(X_cleaned, y_cleaned)  # pyright: ignore
+        X_resampled, y_resampled = sampler.fit_resample(X_under, y_under)  # pyright: ignore
     else:
-        X_resampled, y_resampled = sampler.fit_resample(X_cleaned, y_cleaned)
+        X_resampled, y_resampled = sampler.fit_resample(X_cleaned, y_cleaned)  # pyright: ignore
 
     tc.print(f"Balanced class distribution: {Counter(y_resampled)}")
 

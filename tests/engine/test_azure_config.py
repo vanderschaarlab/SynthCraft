@@ -55,7 +55,7 @@ def test_load_load_azure_openai_configs_not_found():
 
 
 def test_load_load_azure_openai_configs_loaded(test_azure_openai_config: pathlib.Path):
-    out = load_azure_openai_configs(config_path=test_azure_openai_config)
+    out = load_azure_openai_configs(config_path=test_azure_openai_config)  # pyright: ignore
     assert len(out) == 2
     assert out[0].name == "model-A"
     assert out[1].name == "model-B"
@@ -65,16 +65,16 @@ def test_load_load_azure_openai_configs_loaded(test_azure_openai_config: pathlib
 
 def test_load_load_azure_openai_configs_wrong_format(test_azure_openai_wrong_format: pathlib.Path):
     with pytest.raises(ClimbConfigurationError, match=r".*parsing.*"):
-        load_azure_openai_configs(config_path=test_azure_openai_wrong_format)
+        load_azure_openai_configs(config_path=test_azure_openai_wrong_format)  # pyright: ignore
 
 
 def test_load_azure_openai_config_item_not_found(test_azure_openai_config: pathlib.Path):
     with pytest.raises(ClimbConfigurationError, match=r".*not found.*"):
-        load_azure_openai_config_item(config_path=test_azure_openai_config, config_item_name="model-C")
+        load_azure_openai_config_item(config_path=test_azure_openai_config, config_item_name="model-C")  # pyright: ignore
 
 
 def test_load_azure_openai_config_item_found(test_azure_openai_config: pathlib.Path):
-    out = load_azure_openai_config_item(config_path=test_azure_openai_config, config_item_name="model-B")
+    out = load_azure_openai_config_item(config_path=test_azure_openai_config, config_item_name="model-B")  # pyright: ignore
     assert out.name == "model-B"
     assert out.model == "gpt-4o-2024-05-13"
     assert isinstance(out, AzureOpenAIConfig)
