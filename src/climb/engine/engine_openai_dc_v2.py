@@ -986,6 +986,29 @@ this may be the case, and what needs to be done to improve model performance. Pr
         "tools": ["autoprognosis_survival_train_test"],
     },
     {
+        "episode_id": "ML_CONF",
+        "status_reason": None,
+        "selection_condition": None,
+        "episode_name": "Conformal Prediction for Model Uncertainty",
+        "episode_details": """
+- This episode applies conformal prediction to a pre-trained model to quantify prediction uncertainty. Explain the concept of conformal prediction to the user.
+- Ask the user what miscoverage level they would like to use for the conformal prediction. Tell the user that 0.05 means a 95% confidence interval and the  default is 0.1.
+- Summon the `conformal_prediction` tool with the user suggested miscoverage level to generate prediction sets (for classification and survival) or intervals (for regression).
+    """,
+        "coordinator_guidance": """
+Ensure that the correct pre-trained model file path is provided along with up-to-date training and test CSV files.
+This tool is meant to provide a measure of uncertainty for the model's predictions, which is particularly useful for assessing 
+model reliability and guiding further data collection or model refinement.
+    """,
+        "worker_guidance": """
+For survival analysis, ensure that a valid time-to-event column is provided.
+Make sure to use the latest versions of the training and test datasets. The tool returns prediction sets (for classification and survival) 
+or intervals (for regression) in a user-friendly DataFrame format.
+If you have both a train and test dataset, pass them both to the tool. If you only have a train dataset, pass it to the tool. Do not guess what the test dataset is.
+    """,
+        "tools": ["conformal_prediction"]
+    },
+    {
         "episode_id": "MLE_1",
         "status_reason": None,
         "selection_condition": None,
@@ -1215,6 +1238,7 @@ PLAN = [
     "ML_1-CLASSIFICATION",
     "ML_1-REGRESSION",
     "ML_1-SURVIVAL",
+    "ML_CONF",
     "MLE_1",
     "MLE_2",
     "MLE_3",
