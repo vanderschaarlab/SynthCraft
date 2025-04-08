@@ -1271,10 +1271,10 @@ def autoprognosis_regression_train_test(
         except AttributeError as e:
             if "no attribute 'fit'" in str(e):
                 # TODO: Find a way to print more detail in this case.
-                tc.set_returns(
-                    f"Regression study failed to achieve minimum performance (below threshold {SCORE_THRESHOLD}). "
-                    "No model saved."
-                )
+                # tc.set_returns(
+                #     f"Regression study failed to achieve minimum performance (below threshold {SCORE_THRESHOLD}). "
+                #     "No model saved."
+                # )
                 return
     tc.print("Regression study completed!")
 
