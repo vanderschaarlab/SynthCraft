@@ -91,6 +91,7 @@ class Message(pydantic.BaseModel):
     agent: Agent = "worker"
 
     new_reasoning_cycle: bool = False
+    summary_message: bool = False
 
     # --- Pure text ---
     text: Optional[str]
