@@ -1269,44 +1269,50 @@ with main_col_2:
 
         elif st.session_state.active_tab == "tab_plan":
             add_tab_warning_area("tab_plan")
-            # st.markdown("🚧 Work in progress 🚧")
-            plan_list_of_dicts = engine().get_current_plan()
-            if plan_list_of_dicts is None:
+            plan_object = engine().get_current_plan()
+            if plan_object is None or len(plan_object) == 0:
                 st.markdown("*No plan found.*")
             else:
-                df_plan = df_from_plan(plan_list_of_dicts)
+                if isinstance(plan_object[0], str):
+                    # Engine with dynamic plan represented as a list of str and episode_db.
+                    plan = engine().get_plan_for_display()  # type: ignore
+                    plan_df = pd.DataFrame(plan)
+                    st.dataframe(plan_df, height=790)
+                else:
+                    # Engine with explicit task/subtask plan setup (e.g. -nextgen)
+                    df_plan = df_from_plan(plan_object)
 
-                def style_by_status(s):
-                    MAP = {
-                        "not_started": ["background-color: rgb(0,0,0,0);"],  # Transparent.
-                        "in_progress": ["background-color: DarkYellow;"],
-                        "completed": ["background-color: DarkGreen;"],
-                        "needs_redoing": ["background-color: DarkRed;"],
-                    }
-                    return MAP.get(s[0], [])
+                    def style_by_status(s):
+                        MAP = {
+                            "not_started": ["background-color: rgb(0,0,0,0);"],  # Transparent.
+                            "in_progress": ["background-color: DarkYellow;"],
+                            "completed": ["background-color: DarkGreen;"],
+                            "needs_redoing": ["background-color: DarkRed;"],
+                        }
+                        return MAP.get(s[0], [])
 
-                df_styled = df_plan.style.apply(style_by_status, subset=["Status"], axis=1)
+                    df_styled = df_plan.style.apply(style_by_status, subset=["Status"], axis=1)
 
-                # Show the plan in a table.
-                st.dataframe(
-                    df_styled,
-                    hide_index=True,
-                    height=790,
-                    column_config={
-                        "Project Stage": st.column_config.TextColumn(
-                            width=135,  # type: ignore
-                        ),
-                        "Task": st.column_config.TextColumn(
-                            width=195,  # type: ignore
-                        ),
-                        "Subtask": st.column_config.TextColumn(
-                            width=240,  # type: ignore
-                        ),
-                        "Status": st.column_config.TextColumn(
-                            width=104,  # type: ignore
-                        ),
-                    },
-                )
+                    # Show the plan in a table.
+                    st.dataframe(
+                        df_styled,
+                        hide_index=True,
+                        height=790,
+                        column_config={
+                            "Project Stage": st.column_config.TextColumn(
+                                width=135,  # type: ignore
+                            ),
+                            "Task": st.column_config.TextColumn(
+                                width=195,  # type: ignore
+                            ),
+                            "Subtask": st.column_config.TextColumn(
+                                width=240,  # type: ignore
+                            ),
+                            "Status": st.column_config.TextColumn(
+                                width=104,  # type: ignore
+                            ),
+                        },
+                    )
 
         elif st.session_state.active_tab == "tab_transforms":
             add_tab_warning_area("tab_transforms")

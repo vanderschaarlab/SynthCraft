@@ -3155,6 +3155,26 @@ class OpenAIDCEngine(OpenAIEngineBase):
         parent_params = OpenAIEngineBase.get_engine_parameters()
         return parent_params + [ToolSetParameter, PossibleEpisodesParam]
 
+    def get_plan_for_display(self):
+        completed_episodes, remaining_episodes = get_completed_and_remaining_episodes(
+            self.plan,
+            self.get_current_last_episode(),
+            include_selected=False,
+        )
+        plan_for_display = [
+            {"episode_id": x["episode_id"], "episode_name": x["episode_name"]}
+            for x in self.episode_db
+            if x["episode_id"] in self.plan
+        ]
+        for episode in plan_for_display:
+            if episode["episode_id"] in completed_episodes:
+                episode["status"] = "completed"
+            elif episode["episode_id"] in remaining_episodes:
+                episode["status"] = "remaining"
+            else:
+                episode["status"] = "current"
+        return plan_for_display
+
     def _set_initial_messages(self, agent: EngineAgent) -> List[Message]:
         if agent.agent_type == "worker":
             msg_w_dc = get_last_message_like(self.get_message_history(), _has_delegated_content)
