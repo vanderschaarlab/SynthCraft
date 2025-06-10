@@ -64,3 +64,7 @@ wd
 keys.env
 az_openai_config.yml
 db.json
+
+data/
+*.ipynb
+temp_wd/

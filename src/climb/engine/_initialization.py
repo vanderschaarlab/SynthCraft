@@ -17,6 +17,7 @@ from .engine_openai_min_baseline import AzureOpenAIMinBaselineEngine, OpenAIMinB
 from .engine_openai_nextgen import AzureOpenAINextGenEngine, OpenAINextGenEngine
 from .engine_openai_sim import AzureOpenAINextGenEngineSim, OpenAINextGenEngineSim
 from .engine_openai_tool_baseline import AzureOpenAIToolBaselineEngine, OpenAIToolBaselineEngine
+from .engine_openai_synthetic import AzureOpenAISyntheticEngine, OpenAISyntheticEngine
 
 dotenv_config = get_dotenv_config()
 
@@ -31,6 +32,10 @@ ENGINE_MAP = {
     # CoT v2 engines:
     OpenAIDCv2Engine.get_engine_name(): OpenAIDCv2Engine,
     AzureOpenAIDCv2Engine.get_engine_name(): AzureOpenAIDCv2Engine,
+    # synthetic data engines:
+    OpenAISyntheticEngine.get_engine_name(): OpenAISyntheticEngine,
+    AzureOpenAISyntheticEngine.get_engine_name(): AzureOpenAISyntheticEngine,
+
 }
 
 if dotenv_config.get("BASELINE_METHODS", "False") == "True":
