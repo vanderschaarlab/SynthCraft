@@ -1,51 +1,28 @@
-# <img src="docs/assets/climb-logo-no-text.png" height=25> CliMB-DC
+# <img src="docs/assets/SynthCraft.png" height=25> SynthCraft
 
-This repository contains **CliMB-DC**, a Data-Centric copilot system that builds upon the [CliMB](https://github.com/vanderschaarlab/climb) ecosystem.
+This repository contains **SynthCraft**, a Data-Centric copilot system that builds upon the [CliMB](https://github.com/vanderschaarlab/climb) ecosystem.
 
-## 📦 Installation: CliMB-DC
+## 📦 Installation: SynthCraft
 The installation process is analogous to the original CliMB system, with the only difference being in the [📈 Install the CliMB package step](https://climb-ai.readthedocs.io/en/latest/installation.html#install-the-climb-package). You should replace the command:
 ```bash
 git clone https://github.com/vanderschaarlab/climb.git
 ```
 with:
 ```bash
-git clone https://github.com/DrShushen/climb-dc.git
+git clone https://github.com/vanderschaarlab/SynthCraft.git
 ```
 
-## 🚀 Usage: CliMB-DC
+## 🚀 Usage: SynthCraft
 
-In order to run CliMB-DC, you can follow the original [CliMB quickstart guide](https://climb-ai.readthedocs.io/en/latest/quickstart.html) but choose the *engine* (in the *Research Management* page, *Select engine* dropdown) to be:
+In order to run SynthCraft, you can follow the original [CliMB quickstart guide](https://climb-ai.readthedocs.io/en/latest/quickstart.html) but choose the *engine* (in the *Research Management* page, *Select engine* dropdown) to be:
 ```
-openai_dc
+openai_synthetic
 ```
 or
 ```
-azure_openai_dc
+azure_openai_synthetic
 ```
 depending on the OpenAI model provider you are using.
-
-## 📃 Note on Licensing
-
-The code inside [`impl_agpl` directory](./src/climb/tool/impl_agpl) is only compatible with the [AGPL-3.0 license](https://choosealicense.com/licenses/agpl-3.0/).
-
-It is not compatible with the [Apache-2.0 license](https://choosealicense.com/licenses/apache-2.0/), under which the core of the project (CliMB-DC **core**) is licensed.
-
-If you wish to use the extra tools provided in the `impl_agpl` directory, you must explicitly install the `[extra]` version of CliMB-DC like so:
-
-```bash
-# Clone the *CliMB-DC* repository.
-git clone https://github.com/DrShushen/climb-dc.git
-cd climb
-# Install with the `[extra]` option.
-pip install -e climb[extra]
-```
-
-If you are forking/deriving from the code that **requires the tools in the `impl_agpl` directory** (i.e. CliMB-DC with `[extra]`), you **must** also license your code under the AGPL-3.0 license.
-
-**Note:**
-
-The code of CliMB-DC **core** does not depend on the code in the `impl_agpl` directory or its functionality. The `[extra]` version is *completely isolated and optional*.
-Hence the core of CliMB-DC can be used under the Apache-2.0 license while the tools in the `impl_agpl` directory can be used *only* under the AGPL-3.0 license.
 
 ---
 
