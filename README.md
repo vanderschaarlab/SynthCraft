@@ -1,151 +1,151 @@
 # <img src="docs/assets/SynthCraft.png" height=25> SynthCraft
 
-This repository contains **SynthCraft**, a Data-Centric copilot system that builds upon the [CliMB](https://github.com/vanderschaarlab/climb) ecosystem.
+# 📦 Installation: SynthCraft
+The installation process is as follows:
 
-## 📦 Installation: SynthCraft
-The installation process is analogous to the original CliMB system, with the only difference being in the [📈 Install the CliMB package step](https://climb-ai.readthedocs.io/en/latest/installation.html#install-the-climb-package). You should replace the command:
-```bash
-git clone https://github.com/vanderschaarlab/climb.git
+## 🐍 Set up the conda environments
+SynthCraft uses conda to manage the Python environments. Before installing SynthCraft, you need to set up two conda environments as follows.
+
+If you do not have conda (“Anaconda”) installed on your system, you should [install the miniconda distribution](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html).
+
+Create the main conda environment for SynthCraft:
+### Create the environment:
 ```
-with:
+conda create -n SynthCraft python=3.9 -y
+conda install conda-forge::weasyprint
+```
+### Create a separate conda environment that will be used for code execution:
+```
+conda create -n climb-code python=3.9 -y
+```
+
+### Activate the environment:
+```
+conda activate climb-code
+```
+
+### Install some standard packages in the environment. If more packages are needed by generated code, those will be automatically installed by the tool.
+```
+conda install pandas numpy matplotlib seaborn scikit-learn shap -y
+```
+### Exit this environment:
+```
+conda deactivate
+```
+
+## 🔑 Obtain the API keys for the third-party LLM
+
+Create an Azure account [here](https://azure.microsoft.com/en-gb/pricing/purchase-options/azure-account?icid=azurefreeaccount).
+
+Create an Azure OpenAI Service resource by following the steps in the [official guide](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/create-resource?pivots=web-portal) and this [user-friendly unofficial guide](https://ivanatilca.medium.com/a-step-by-step-guide-to-deploying-open-ai-models-on-microsoft-azure-cab86664fbb4).
+
+At the Configure network security step, Allow all networks is easiest and should be acceptable for most users.
+
+At the final “Deploy a model” step, we recommend selecting gpt-4, gpt-4o, or better (gpt-3.5 is not recommended due to poor performance). More specifically, please select one of these supported versions:
+```
+ALLOWED_MODELS = [
+    # GPT-4o:
+    "gpt-4o-2024-08-06",
+    "gpt-4o-2024-05-13",
+    # GPT-4-turbo:
+    "gpt-4-0125-preview",
+    "gpt-4-1106-preview",
+    # GPT-3.5-turbo:
+    "gpt-3.5-turbo-0125",
+    "gpt-3.5-turbo-1106",
+]
+```
+
+For instance: gpt-4o-2024-08-06 in supported versions list means model gpt-4 and model version 2024-08-06 in Azure.
+
+Make note of the model type and version (e.g. gpt-4o-2024-08-06) you set up here as it is needed later.
+
+When you are deploying the model, make note of the deployment name that you use as it is needed later.
+
+In Azure OpenAI Studio:
+
+Click the resource name at the top right of the screen to find: endpoint and key, make note of these as they are needed later. Azure info new UI
+
+⚠️ Never share your API key with anyone and treat it as a “password”. A reminder to developers to to never commit your API keys to a public repository!
+
+
+## 📈 Install the SynthCraft package
+
 ```bash
 git clone https://github.com/vanderschaarlab/SynthCraft.git
+```
+Then navigate into the project folder and run:
+```bash
+conda activate SynthCraft
+pip install -e .
+```
+Finally, you need to set up the configuration file for the LLM provider you chose.
+
+Copy the Example .env file to the repo directory. Note that it should be placed directly inside the SynthCraft folder, not inside any subfolder; please see the end of this subsection below to check what your repo directory should contain at the end of the configuration process. On Windows you may wish to rename this file to keys.env to avoid the file being hidden / extension confusion.
+
+Configure SynthCraft to work with the LLM provider you chose by following the appropiate instructions below:
+
+### OpenAI
+Open the `.env`/`keys.env` file in the repo directory and replace the value of
+
+`OPENAI_API_KEY="API_KEY_FOR_OPENAI"`
+with the key you obtained. Make sure to replace the text `API_KEY_FOR_OPENAI` but keep the quotes (e.g. if your key is abc123, the line should look like `OPENAI_API_KEY="abc123"`).
+
+### AzureOpenAI
+Open the `.env`/`keys.env` file in the repo directory.
+
+`AZURE_OPENAI_API_KEY__my-endpoint-1="API_KEY_FOR_AZURE_ENDPOINT_1"`
+Update the value `"API_KEY_FOR_AZURE_ENDPOINT_1"` with the API key you obtained.
+
+Replace my-endpoint-1 template with the ID of the endpoint you are actually using. For example, if your endpoint is https://my-clinic.openai.azure.com/, use the my-clinic part. In this example case, the line would look like:
+
+`AZURE_OPENAI_API_KEY__my-clinic="your actual API key"`
+Copy the Example az_openai_config.yml file to the repo directory. Note that it should be placed directly inside the SynthCraft folder, not inside any subfolder; please see the end of this subsection below to check what your repo directory should contain at the end of the configuration process.
+
+Open the az_openai_config.yml file in the repo directory:
+```
+models:
+    - name: "your-custom-name"
+    endpoint: "https://my-endpoint-1.openai.azure.com/"
+    deployment_name: "your-deployment-name"
+    api_version: "2024-02-01"
+    model: "gpt-4-0125-preview"
+    # Any lines with a '#' are comments and are just for your information.
+```
+The fields in this file are explained below. What you need to set the values to is shown in italics below. Note: you should not remove the quotation marks around the values.
+
+**name:** This is used to identify the model in the UI. It will appear as config_item_name when you select the azure_openai_nextgen engine in 🗨️ Research Management. You can set this to any value you like.
+
+**endpoint:** This identifies a URL needed to connect to the API. Set this to the endpoint you obtained.
+
+**deployment_name:** This is the name of the deployment you set up in the Azure OpenAI Portal. Set this to the deployment name you obtained.
+
+**api_version:** This is the version of the API protocol you are using. You can find the possible values for this field here (more info here) It is recommended to set this to the latest version available.
+
+**model:** This needs to match the model type and version you set up in the Azure OpenAI Portal. It should be formatted exactly as the matching version from supported versions. For example, use gpt-4-0125-preview if you deployed a gpt-4 model and set the version to 0125-preview. This field should be set to model type and version from earlier.
+
+At the end of the configuration, your repo directory should looks something like this:
+```
+project_directory/
+├─ config_examples/
+├─ docs/
+├─ ...
+├─ tests/
+.coveragerc
+.gitignore
+...
+.env  # Or, keys.env. The main configuration file.
+az_openai_config.yml  # If using Azure OpenAI Service, its configuration file.
+...
+setup.py
+tox.ini
 ```
 
 ## 🚀 Usage: SynthCraft
 
-In order to run SynthCraft, you can follow the original [CliMB quickstart guide](https://climb-ai.readthedocs.io/en/latest/quickstart.html) but choose the *engine* (in the *Research Management* page, *Select engine* dropdown) to be:
-```
-openai_synthetic
-```
-or
-```
-azure_openai_synthetic
-```
-depending on the OpenAI model provider you are using.
+In order to run SynthCraft, launch SynthCraft UI, run the command:
 
----
-
-*Below you can find the content of the original README.md file for the CliMB system.*
-
-<!-- CliMB README.md -->
-
-<!-- exclude_docs -->
-[![Documentation Status](https://readthedocs.org/projects/climb-ai/badge/?version=latest)](https://climb-ai.readthedocs.io/en/latest/?badge=latest)
-[![YouTube](https://img.shields.io/badge/YouTube-%23FF0000.svg?logo=YouTube&logoColor=white)](https://www.youtube.com/watch?v=76XuR0K3F5Y)
-
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/release/python-370/)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE.txt)
-<!-- [![PyPI-Server](https://img.shields.io/pypi/v/climb-ai?color=blue)](https://pypi.org/project/climb-ai/) -->
-<!-- [![Downloads](https://static.pepy.tech/badge/climb-ai)](https://pepy.tech/project/climb-ai) -->
-
-[![arXiv](https://img.shields.io/badge/arXiv-2301.12260-b31b1b.svg)](http://arxiv.org/abs/2410.03736)
-[![slack](https://img.shields.io/badge/chat-on%20slack-purple?logo=slack)](https://join.slack.com/t/vanderschaarlab/shared_invite/zt-1u2rmhw06-sHS5nQDMN3Ka2Zer6sAU6Q)
-<!-- exclude_docs_end -->
-
-# <img src="docs/assets/climb-logo-no-text.png" height=25> CliMB
-
-> **CliMB**: **Cli**nical **M**achine learning **B**uilder
-
-This repository is the implementation of the system as described in the preprint [CliMB: An AI-enabled Partner for Clinical Predictive Modeling](http://arxiv.org/abs/2410.03736).
-
-[<img src="docs/assets/play.svg" height=12> Watch the demo](https://www.youtube.com/watch?v=76XuR0K3F5Y)
-
-[![Demo Video](docs/assets/video-demo.gif)](https://www.youtube.com/watch?v=76XuR0K3F5Y)
-
-
-
-## 🏥 Overview
-CliMB is an AI-enabled partner designed to empower clinician scientists to create predictive models from real-world clinical data, all within a single conversation. With its no-code, natural language interface, CliMB guides you through the entire data science pipeline, from data exploration and engineering to model building and interpretation. The intuitive interface combines an interactive chat with a dashboard that displays project progress, data transformations, and visualizations, making it easy to follow along. Leveraging state-of-the-art methods in AutoML, data-centric AI, and interpretability tools, CliMB offers a streamlined solution for developing robust, clinically relevant predictive models.
-
-<img src="docs/assets/climb-fig-clinical.png" width=45% alt="CliMB Clinical Figure"> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <img src="docs/assets/climb-fig-main.png" width=45% alt="CliMB Conceptual Figure">
-
-Our vision is for CliMB to integrate seamlessly into the clinician's workflow, supporting the complete cycle of clinical predictive modeling, and ultimately democratizing machine learning and AI utilization in healthcare.
-
-<!-- exclude_docs -->
-> [!NOTE]
-> The intended target audience of CliMB is a clinician scientists with some basic Python and AI knowledge.
-> If you do not consider yourself "tech-savvy", the installation and configuration steps in particular may require assistance from your IT department.
-<!-- exclude_docs_end -->
-<!-- include_docs
-```{admonition} Target audience
-:class: note
-
-The intended target audience of CliMB is a clinician scientists with some basic Python and AI knowledge.
-If you do not consider yourself "tech-savvy", the installation and configuration steps in particular may require assistance from your IT department.
-```
-include_docs_end -->
-
-
-
-## 🔏 Data Privacy
-<!-- exclude_docs -->
-> [!WARNING]  
-> It is crucial to understand the data privacy and confidentiality implications of using CliMB. Please ensure to read and understand the [Data Privacy documentation section](https://climb-ai.readthedocs.io/en/latest/dataprivacy.html) in full prior to installing and using the system.
-<!-- exclude_docs_end -->
-<!-- include_docs
-```{admonition} Warning
-:class: attention
-
-It is crucial to understand the data privacy and confidentiality implications of using CliMB. Please ensure to read and understand the [Data Privacy documentation section](dataprivacy.md) in full prior to installing and using the system.
-```
-include_docs_end -->
-
-When using CliMB with real-world clinical data, you as the clinician scientist act as the data steward, and are responsible for ensuring that the use of the data complies with all the relevant laws and regulations, as well as ethical considerations. CliMB aims to provide a secure and privacy-preserving environment for data exploration and model building, while balancing this with leveraging the capabilities of the most advanced large language models (LLMs).
-
-We provide a detailed section in the documentation, which summarizes the data privacy fundamentals of CliMB and should allow you to make an informed decision about using the system with your data. It is essential that you read and understand this prior to using CliMB, please find the link below:
-
-<!-- exclude_docs -->
-#### [📕 **Must-read:** Data Privacy documentation](https://climb-ai.readthedocs.io/en/latest/dataprivacy.html)
-<!-- exclude_docs_end -->
-<!-- include_docs
-#### [📕 **Must-read:** Data Privacy documentation](dataprivacy.md)
-include_docs_end -->
-
-
-
-## 📦 Installation
-
-<!-- exclude_docs -->
-> [!WARNING]  
-> Please read the [🔏 Data Privacy](https://climb-ai.readthedocs.io/en/latest/dataprivacy.htmldata-privacy) documentation section before proceeding with this step, in order to understand whether CliMB is compatible with your data and use case.
-
-Please follow the steps in [📦 Installation](https://climb-ai.readthedocs.io/en/latest/installation.html) section in the documentation to install CliMB.
-
-To update to the latest version of CliMB, please follow [📦⬆️ Updating CliMB](https://climb-ai.readthedocs.io/en/latest/installation.html#updating-climb)
-<!-- exclude_docs_end -->
-<!-- include_docs
-```{admonition} Warning
-:class: attention
-
-Please read the [🔏 Data Privacy](dataprivacy.md) section before proceeding with this step, in order to understand whether CliMB is compatible with your data and use case.
-```
-
-Please follow the steps in [📦 Installation](docs/installation.md) section in the documentation to install CliMB.
-
-To update to the latest version of CliMB, please follow [📦⬆️ Updating CliMB](docs/installation.md#updating-climb)
-include_docs_end -->
-
-
-
-## 🚀 Usage
-First, navigate to the the CliMB **repo directory** in the terminal.
-<!-- exclude_docs -->
-> [!TIP]
-> The location of the **repo directory** is explained in the [📈 Install the CliMB package](https://climb-ai.readthedocs.io/en/latest/installation.html#install-the-climb-package) section of the documentation. Don't forget to run `cd climb` to change to the repo directory.
-<!-- exclude_docs_end -->
-<!-- include_docs
-```{admonition} Repo directory
-:class: tip
-
-The location of the **repo directory** is explained in the [📈 Install the CliMB package](installation.md#install-the-climb-package) section of the documentation. Don't forget to run `cd climb` to change to the repo directory.
-```
-include_docs_end -->
-
-To launch CliMB UI, run the command:
-```bash
-streamlit run entry/st/app.py
-```
+`streamlit run entry/st/app.py`
 
 This will show the output like:
 ```
@@ -155,59 +155,50 @@ This will show the output like:
   Network URL: http://192.168.0.68:8501
 ```
 
-<!-- exclude_docs -->
-The best way to get started with CliMB is to follow the [**🚀 Quickstart Guide**](https://climb-ai.readthedocs.io/en/latest/quickstart.html) in the documentation.
+### Start a new session
+Navigate to the Local URL from the terminal output in your browser. We have tested SynthCraft on Google Chrome, so it is recommended for best UI compatibility.
 
-### Troubleshooting and getting help
-
-If you encounter errors or problems when running CliMB for the first time, please check out the [🛠️ Troubleshooting](https://climb-ai.readthedocs.io/en/latest/troubleshooting.html) section, as it has the resolution steps for some common installation and set up problems. For any other problems, please submit a GitHub issue [here](https://github.com/vanderschaarlab/climb/issues), or ask us on [Slack](https://join.slack.com/t/vanderschaarlab/shared_invite/zt-1u2rmhw06-sHS5nQDMN3Ka2Zer6sAU6Q), `#climb` channel.
-<!-- exclude_docs_end -->
-<!-- include_docs
-The best way to get started with CliMB is to follow the [**🚀 Quickstart Guide**](quickstart.md) in the documentation.
-
-If you encounter errors or problems when running CliMB for the first time, please check out the [🛠️ Troubleshooting](troubleshooting.md) section, as it has the resolution steps for some common installation and set up problems. For any other problems, please submit a GitHub issue [here](https://github.com/vanderschaarlab/climb/issues), or ask us on [Slack](https://join.slack.com/t/vanderschaarlab/shared_invite/zt-1u2rmhw06-sHS5nQDMN3Ka2Zer6sAU6Q).
-include_docs_end -->
-
-
-
-<!-- exclude_docs -->
-## 📚 Documentation
-
-You will find much more useful information in the [project documentation](https://climb-ai.readthedocs.io/).
-
-We have compiled some of the most common questions in the [FAQ](https://climb-ai.readthedocs.io/en/latest/faq.html) section, so please do check it out.
-<!-- exclude_docs_end -->
-
-
-
-## 📝 Disclaimer
-
-By accessing and using this software, you acknowledge and agree that you do so at your own risk. The copyright holders and contributors of this software and its associated web-based tools disclaim any liability for inaccuracies, errors, or omissions in the analyses generated or for any actions taken based on these analyses. 
-
-This software is provided on an "as-is" basis without any warranties, expressed or implied, including but not limited to accuracy, fitness for a particular purpose, or compatibility with regulatory requirements. The copyright holders and contributors assume no responsibility for any clinical or non-clinical outcomes that may arise from use of this software or its results.
-
-**Data Privacy and Confidentiality:**  
-You are solely responsible for ensuring that any data entered into this system complies with relevant confidentiality and data privacy regulations, including HIPAA, GDPR, or any other applicable standards. As this software utilizes third-party, proprietary large language model (LLM) APIs, the copyright holders and contributors are not responsible for data security or regulatory compliance in relation to the use of these external APIs. It is the user's responsibility to anonymize data as required and to ensure that data-sharing practices align with the applicable privacy laws and institutional policies.
-
-<!-- exclude_docs -->
-You acknowledge that you have read and understood the [Data Privacy documentation](https://climb-ai.readthedocs.io/en/latest/dataprivacy.html) and the implications of using this software with your data described therein.
-<!-- exclude_docs_end -->
-<!-- include_docs
-You acknowledge that you have read and understood the [Data Privacy documentation](dataprivacy.md) and the implications of using this software with your data described therein.
-include_docs_end -->
-
-By proceeding to use this software, you agree to these terms and accept full responsibility for your use and management of any data within this system.
-
-
-
-## ✍️ Citing
-
-If you use CliMB in your work, please cite the [associated paper](http://arxiv.org/abs/2410.03736):
-```bibtex
-@article{saveliev2024climb,
-  title={CliMB: An AI-enabled Partner for Clinical Predictive Modeling},
-  author={Saveliev, Evgeny and Schubert, Tim and Pouplin, Thomas and Kosmoliaptsis, Vasilis and van der Schaar, Mihaela},
-  journal={arXiv preprint arXiv:2410.03736},
-  year={2024}
-}
+Please select 🗨️ Research Management from the side panel. On this page, choose the *engine* to be:
 ```
+openai_synthetic
+```
+or
+```
+azure_openai_synthetic
+```
+depending on the OpenAI model provider you are using.
+
+From the Select engine dropdown, choose the engine that matches your LLM provider.
+
+You may give a custom name to your session in the Session Name field, otherwise an auto-generated name will be assigned.
+
+The Engine parameters section allows you to configure certain settings of the “engine”, such as the specific LLM model (when applicable). Hover over the  icon next to each setting to see a tooltip with more information.
+
+Once you select Start new session, you will be taken to the main SynthCraft session screen.
+
+
+## 🔏 Data Privacy
+<!-- exclude_docs -->
+> [!WARNING]  
+> It is crucial to understand the data privacy and confidentiality implications of using SynthCraft. Please ensure to read and understand the in full prior to installing and using the system.
+<!-- exclude_docs_end -->
+<!-- include_docs
+```{admonition} Warning
+:class: attention
+
+It is crucial to understand the data privacy and confidentiality implications of using SynthCraft. Please ensure to read and understand the [Data Privacy documentation section](dataprivacy.md) in full prior to installing and using the system.
+```
+include_docs_end -->
+
+When using SynthCraft with real-world clinical data, you as the clinician scientist act as the data steward, and are responsible for ensuring that the use of the data complies with all the relevant laws and regulations, as well as ethical considerations. SynthCraft aims to provide a secure and privacy-preserving environment for data exploration and model building, while balancing this with leveraging the capabilities of the most advanced large language models (LLMs).
+
+We provide a detailed section in the documentation, which summarizes the data privacy fundamentals of SynthCraft and should allow you to make an informed decision about using the system with your data. It is essential that you read and understand this prior to using SynthCraft, please find the link below:
+
+<!-- exclude_docs -->
+#### [📕 **Must-read:** Data Privacy documentation](https://github.com/vanderschaarlab/SynthCraft/blob/main/docs/dataprivacy.md)
+<!-- exclude_docs_end -->
+<!-- include_docs
+#### [📕 **Must-read:** Data Privacy documentation](dataprivacy.md)
+include_docs_end -->
+
+
