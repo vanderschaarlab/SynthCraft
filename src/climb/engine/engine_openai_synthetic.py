@@ -306,19 +306,19 @@ CODE:
 #         "worker_guidance": None,
 #         "tools": [],
 #     },
-    {
-        "episode_id": "INFO_2",
-        "status_reason": None,
-        "selection_condition": None,
-        "episode_name": "Experiment setup and research question from the user",
-        "episode_details": """
-1. Ask the user to describe the task they want to complete. Ask if it is a classification, or regression task.
-2. Confirm with the user what the name of the target column in their dataset is.
-""",
-        "coordinator_guidance": None,
-        "worker_guidance": None,
-        "tools": [],
-    },
+#     {
+#         "episode_id": "INFO_2",
+#         "status_reason": None,
+#         "selection_condition": None,
+#         "episode_name": "Experiment setup and research question from the user",
+#         "episode_details": """
+# 1. Ask the user to describe the task they want to complete. Ask if it is a classification, or regression task.
+# 2. Confirm with the user what the name of the target column in their dataset is.
+# """,
+#         "coordinator_guidance": None,
+#         "worker_guidance": None,
+#         "tools": [],
+#     },
 #     {
 #         "episode_id": "INFO_3",
 #         "status_reason": None,
@@ -378,7 +378,8 @@ When generating this code, print the columns line by line (not as one list) so t
         "selection_condition": None,
         "episode_name": "Perform EDA",
         "episode_details": """
-Perform exploratory data analysis on the data using the `EDA` tool.
+Perform exploratory data analysis on the data using the `EDA` tool. Explain to the user what analyses you have performed \
+and that you will perform descriptive statistics generation to understand the distributions in the data in the next step. \
 
 If the user provided both a training and a test dataset, you must use the tool with the TRAINING dataset only.
 """,
@@ -386,8 +387,6 @@ If the user provided both a training and a test dataset, you must use the tool w
         "worker_guidance": """
 **IMPORTANT**: This step needs executing a TOOL called `EDA`. **DO NOT** write your own code for this step!
 
-- The `target` (name of the target column) argument for the EDA tool should be clear from previous steps, in most cases. \
-PROVIDE it to the tool unless definitely not possible.
 - After executing the tool, provide the user with a summary of what you see in the EDA. Use your best understanding of \
 data science and machine learning. **DO NOT** make suggestions of what needs to be done next! That will be handled \
 later in the process. **Just summarize your learnings.**
@@ -421,6 +420,27 @@ best understanding of medical research and data science.
 **Just summarize your learnings here.**
 """,
         "tools": ["descriptive_statistics"],
+    },
+    {
+        "episode_id": "EDA_4",
+        "status_reason": None,
+        "selection_condition": None,
+        "episode_name": "Exclude/keep columns post analysis",
+        "episode_details": """
+1. Ask the user if they would like to exclude certain columns from the analysis, or conversely, only keep certain columns. \
+Suggest to the user they may want to remove any columns that carry no information useful for the task the data will be used for. \
+If so, find out which columns these are. Then generate code to drop the columns that the user wants to exclude or to \
+only keep the columns that the user wants to keep. If the user provides no preference, do NOT make any changes at this step. \
+Save the modified dataset(s) with the suffix `_user_cols` in the filename.
+
+2. If you did any column exclusion, confirm with the user that there are no more columns to exclude. If so, finish the \
+task, otherwise, work with the user to finalize column removal.
+""",
+        "coordinator_guidance": None,
+        "worker_guidance": """
+When generating this code, print the columns line by line (not as one list) so that the user can easily see them.
+""",
+        "tools": [],
     },
 #     {
 #         "episode_id": "EDA_4", # TODO: put this back in at the end
@@ -494,10 +514,13 @@ When describing the generators, you should include:
 - Name of the generator
 - Description of the generator
 - Strengths and weaknesses of the generator
+The strengths and weaknesses should be given in the context of the fact that the technical setup of the tool is handled for you, by the tool code. \
+So, you should focus on the strengths and weaknesses of the generator itself, what is it good at, what is it not good at, what kind of data is it suitable for, \
+what kind of data is it not suitable for, etc.
 
 When describing PATEGAN you must say that it is differential privacy preserving.
 When describing ADSGAN you must say that it is a GDPR-like privacy engine.
-When describing ARFGAN remember it stands for adversarial random forests.
+When describing ARF remember it stands for adversarial random forests.
 """,
         "tools": ["list_available_generators"],
     },
@@ -510,6 +533,8 @@ When describing ARFGAN remember it stands for adversarial random forests.
 - Ask the user if they would like to: a) generate purely synthetic data only or b) generate synthetic data \
 to augment the original data as well as generating pure synthetic data. Augmenting the original data can be done to increase the number of samples \
 belonging to an under-represented subgroup.
+- If the user wants to augment the original data, ask them which column they would like to use as the fairness column. This column is used to rebalance \
+the data so that the different values in this column are equally represented in the augmented data.
 - Summon the `generate_synthetic_data` tool to generate the synthetic data and evaluate it.
 - Explain the results of the evaluation to the user. Break down the results into the following categories for each \
 data generation method.
@@ -647,16 +672,16 @@ outcomes of previous tasks or episodes.
 PLAN = [
     "ENV_1",
     # "DP-F_1",
-    # "ENV_2", # Check hardware TODO: put this back in at the end
-    # "ENV_3", # TODO: put this back in at the end
-    # "INFO_1",# TODO: put this back in at the end
-    "INFO_2",
+    # "ENV_2", # Check hardware
+    # "ENV_3", 
+    # "INFO_1",
+    # "INFO_2",
     # "INFO_3",
     "EDA_1",
-    "EDA_2", # TODO: put this back in at the end
-    "EDA_3", # TODO: put this back in at the end
-    # "EDA_4",  # TODO: put this back in at the end
-    # "DP-BM_1", # TODO: put this back in at the end
+    "EDA_2", 
+    "EDA_3", 
+    "EDA_4",  
+    # "DP-BM_1", 
     # "DP-M_1",
     # "DP-M_2",
     # "DP-M_3",

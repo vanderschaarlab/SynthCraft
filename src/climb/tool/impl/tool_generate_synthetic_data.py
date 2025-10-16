@@ -17,6 +17,34 @@ import synthcity.logger as log
 from ..tool_comms import ToolCommunicator, ToolReturnIter, execute_tool
 from ..tools import ToolBase
 
+def format_benchmarks_for_text(results: Dict[str, pd.DataFrame]) -> str:
+    """
+    Build a concise text table of mean +/- std for each metric across plugins,
+    similar to Benchmarks.print(...), but as a string.
+    """
+    means_series = []
+    for plugin, df in results.items():
+        mean = df["mean"].copy()
+        std = df["stddev"].copy()
+
+        # match synthcity's print_score rounding/minimums
+        mean[(mean < 1e-3) & (mean != 0)] = 1e-3
+        std[(std < 1e-3) & (std != 0)] = 1e-3
+
+        mean = mean.round(3).astype(str)
+        std = std.round(3).astype(str)
+
+        series = (mean + " +/- " + std)
+        series.name = plugin
+        means_series.append(series)
+
+    if not means_series:
+        return "No metrics available."
+
+    comparatives = pd.concat(means_series, axis=1)
+    # Return a plain text table (avoids tabulate dependency)
+    return comparatives.to_string()
+
 def find_synthetic_cache(
         workspace: str,
         syn_gen_method: str,
@@ -57,10 +85,15 @@ def find_synthetic_cache(
         ]
 
     if not cache_paths:
-        raise FileNotFoundError(
+        print(
             f"No synthetic data cache files found for method '{syn_gen_method}' "
             f"in workspace '{workspace}', after filtering out generator/augmentation/reference."
         )
+        return None
+        # raise FileNotFoundError(
+        #     f"No synthetic data cache files found for method '{syn_gen_method}' "
+        #     f"in workspace '{workspace}', after filtering out generator/augmentation/reference."
+        # )
 
     if len(cache_paths) > 1:
         print(f"Warning: Found multiple synthetic data cache files for method '{syn_gen_method}': {cache_paths}")
@@ -125,11 +158,17 @@ def generate_synthetic_data(
         strict_augmentation=False,
         ad_hoc_augment_vals=None,
     )
+
+    metrics_text = format_benchmarks_for_text(score)
+
     # Save the synthetic data to the specified file path
     syn_data_paths = []
     augmentation_paths = []
     for syn_gen_method in syn_gen_methods:
         X_syn_cache_file = find_synthetic_cache(workspace, syn_gen_method)
+        if not X_syn_cache_file:
+            tc.print(f"Skipping saving synthetic data for method '{syn_gen_method}' as no cache file was found.")
+            continue
         # Synthetic data
         X_syn = load_from_file(X_syn_cache_file).dataframe()
         synthetic_data_file_path_specific = Path(synthetic_data_file_path).parent / f"{syn_gen_method}_{Path(synthetic_data_file_path).name}"
@@ -141,6 +180,9 @@ def generate_synthetic_data(
                 "Augmentation is enabled. Saving augmentation data to csv files."
             )
             X_aug_cache_file = find_synthetic_cache(workspace, syn_gen_method, cache_type="augmentation")
+            if not X_aug_cache_file:
+                tc.print(f"Skipping saving augmentation data for method '{syn_gen_method}' as no cache file was found.")
+                continue
             X_aug = load_from_file(X_aug_cache_file).dataframe()
             augmentation_file_path_specific = Path(synthetic_data_file_path).parent / f"{syn_gen_method}_augmentation_{Path(synthetic_data_file_path).name}"
             X_aug.to_csv(augmentation_file_path_specific, index=False)
@@ -150,17 +192,16 @@ def generate_synthetic_data(
     tc.set_returns(
         tool_return=(
             f"The synthetic data has been generated and metrics evaluated for {', '.join(syn_gen_methods)}."
-            f"Metrics: {Benchmarks.print(score)}."
-            # f"Metrics: {Benchmarks.highlight(score)}."
+            f"Metrics (mean +/- std):\n{metrics_text}\n"
             f"The Synthetic dataset has been saved to {', '.join(syn_data_paths)}."
             f"The Augmentation dataset has been saved to {', '.join(augmentation_paths)}." if augment_data else ""
         ),
         user_report=[
-            f"The synthetic data has been generated and metrics evaluated for {', '.join(syn_gen_methods)}.",
-            f"Metrics: {Benchmarks.print(score)}.",
-            # f"Metrics: {Benchmarks.highlight(score)}.",
-            f"The Synthetic dataset has been saved to {', '.join(syn_data_paths)}.",
-        ],
+        f"The synthetic data has been generated and metrics evaluated for {', '.join(syn_gen_methods)}.",
+        "📊 **Metrics (mean ± std)**",
+        metrics_text,
+        f"**Saved synthetic files:** {', '.join(syn_data_paths)}.",
+    ],
     )
 
 class SyntheticGenerator(ToolBase):
@@ -183,10 +224,6 @@ class SyntheticGenerator(ToolBase):
         )
         self.tool_thread = thrd
         return out_stream
-
-    # @property
-    # def logs_useful(self) -> bool:
-    #     return True
 
     @property
     def name(self) -> str:

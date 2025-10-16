@@ -973,7 +973,7 @@ main_col_1, main_col_2 = st.columns([6.5, 5.5])
 with main_col_1:
     container_chat = st.container(height=500)  # NOTE: Height is a dummy value, it's set by CSS hack.
     container_msg_input = st.container()  # A container for the user chat input, to ensure it sticks to the bottom.
-    container_scroll_js = st.container(height=0)
+    container_scroll_js = st.container(height="content")
 
 with main_col_2:
     tab_labels = []
@@ -1010,7 +1010,7 @@ with main_col_2:
     st.session_state.active_tab = tab_names_map_rev[active_tab_buttons_out]  # type: ignore
 
     with st.container():
-        container_tab_js = st.container(height=0)
+        container_tab_js = st.container(height="content")
         js_tabs = st_common.JSExecutor(
             js_code=dedent("""
                 function addClassToElement(selector) {

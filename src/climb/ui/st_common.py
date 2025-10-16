@@ -210,7 +210,7 @@ class JSExecutor:
 
         def _exec(js_code: str) -> Any:
             if not self.use_st_js:
-                return html(f"<script>{js_code}</script>", height=0)
+                return html(f"<script>{js_code}</script>", height="content")
             else:
                 return st_js_blocking(js_code)
 
