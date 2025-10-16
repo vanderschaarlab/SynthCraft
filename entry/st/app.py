@@ -1,5 +1,3 @@
-# at the very top of your entrypoint (app.py)
-
 import torch
 
 # make sure uint{16,32,64} exist (point at their signed cousins)
