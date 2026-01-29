@@ -1,6 +1,8 @@
 # For all options, see: site-packages/openai/types/chat_model.py
 ALLOWED_MODELS = [
     # NOTE: Recommended:
+    # GPT-5 (placeholder, same limits as GPT-4o):
+    "gpt-5",
     # GPT-4o:
     "gpt-4o-2024-11-20",
     "gpt-4o-2024-08-06",
@@ -15,10 +17,13 @@ ALLOWED_MODELS = [
     # GPT-3.5-turbo:
     "gpt-3.5-turbo-0125",
     "gpt-3.5-turbo-1106",
+    # DeepSeek (Azure-hosted)
+    "deepseek31-silas",
 ]
 
 # For the values, see: https://platform.openai.com/docs/models/
 MODEL_MAX_MESSAGE_TOKENS = {
+    "gpt-5": 4_096,
     "gpt-4o-2024-11-20": 16_384,
     "gpt-4o-2024-08-06": 16_384,
     "gpt-4o-2024-05-13": 4_096,
@@ -31,8 +36,11 @@ MODEL_MAX_MESSAGE_TOKENS = {
     # ---
     "gpt-3.5-turbo-1106": 4_096,
     "gpt-3.5-turbo-0125": 4_096,
+    # ---
+    "deepseek31-silas": 4_096,
 }
 MODEL_CONTEXT_SIZE = {
+    "gpt-5": 128_000,
     "gpt-4o-2024-11-20": 128_000,
     "gpt-4o-2024-08-06": 128_000,
     "gpt-4o-2024-05-13": 128_000,
@@ -45,4 +53,6 @@ MODEL_CONTEXT_SIZE = {
     # ---
     "gpt-3.5-turbo-1106": 16_385,
     "gpt-3.5-turbo-0125": 16_385,
+    # ---
+    "deepseek31-silas": 128_000,
 }

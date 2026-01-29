@@ -52,9 +52,11 @@ def get_llm_chat(
         "openai_dc",
     ):
         model_type = additional_kwargs_required["engine_params"]["model_id"]
+        lookup_model = str(model_type).lower()
+        max_tokens = MODEL_MAX_MESSAGE_TOKENS.get(model_type, MODEL_MAX_MESSAGE_TOKENS.get(lookup_model, 4_096))
         out = client.chat.completions.create(
             model=model_type,
-            max_tokens=MODEL_MAX_MESSAGE_TOKENS[model_type],
+            max_tokens=max_tokens,
             temperature=additional_kwargs_required["engine_params"]["temperature"],
             # ---
             messages=chat_kwargs["messages"],
@@ -69,9 +71,11 @@ def get_llm_chat(
         "azure_openai_dc",
     ):
         model_type = additional_kwargs_required["azure_openai_config"].model
+        lookup_model = str(model_type).lower()
+        max_tokens = MODEL_MAX_MESSAGE_TOKENS.get(model_type, MODEL_MAX_MESSAGE_TOKENS.get(lookup_model, 4_096))
         out = client.chat.completions.create(
             model=additional_kwargs_required["azure_openai_config"].deployment_name,
-            max_tokens=MODEL_MAX_MESSAGE_TOKENS[model_type],
+            max_tokens=max_tokens,
             # ---
             messages=chat_kwargs["messages"],
             stream=chat_kwargs["stream"],

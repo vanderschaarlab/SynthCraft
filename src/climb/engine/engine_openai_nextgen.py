@@ -1557,6 +1557,57 @@ For your information, do not send this to the user
 
 COORDINATOR_STARTING_MESSAGE = "Now proceed with the planning process as instructed."
 
+COORDINATOR_PLAIN_SYSTEM_MESSAGE = f"""
+You coordinate work between a user and a single worker agent that completes subtasks from a structured plan.
+
+You will always receive the entire conversation so far, the structured project plan, and the working directory
+contents. When control returns to you, do exactly what is requested and keep the response minimal.
+
+1. **When you are asked to report updated statuses**: respond with a JSON-compatible list of dictionaries in the exact
+shape shown below and nothing else.
+```
+[
+    {{
+        "subtask_id": "XYZ_1",
+        "subtask_status": "completed"
+    }},
+    {{
+        "subtask_id": "XYZ_2",
+        "subtask_status": "skipped",
+        "status_reason": "User asked to skip."
+    }}
+]
+```
+Only include subtasks whose status changed. Valid values are "completed", "needs_redoing", or "skipped". Provide a
+`status_reason` whenever the status is not "completed".
+
+2. **When you are asked to select the next subtasks**: respond with a JSON-compatible list of subtask ids, e.g.
+```
+["XYZ_3", "XYZ_4"]
+```
+
+Never add commentary or extra prose. Use the structured plan and the conversation record to decide what to do.
+
+Project context:
+{COORDINATOR_ACTUAL_PROJECT_DESCRIPTION}
+
+Structured plan:
+```text
+{STRUCTURED_PLAN_REPLACE_MARKER}
+```
+
+Current working directory contents:
+```text
+{WD_CONTENTS_REPLACE_MARKER}
+```
+"""
+
+COORDINATOR_PLAIN_STARTING_MESSAGE = "Review the conversation and respond in the requested format."
+
+COORDINATOR_PLAIN_REMINDER = """
+Output only the requested JSON-compatible list (either status updates or next subtask ids). Do not add commentary.
+"""
+
 WORKER_RULES = f"""
 #### Interacting with the user:
 Generally:
@@ -2047,7 +2098,7 @@ WORKER_REMINDER = f"""
         * E.g. if you are slightly modifying "data_processed.csv", save the modified file as "data_processed_v2.csv".
 """
 
-MESSAGE_OPTIONS = {
+NEXTGEN_MESSAGE_OPTIONS = {
     # ------------------------------------------------------------------------------------------------------------------
     "coordinator": {
         "system_message_template": COORDINATOR_SYSTEM_MESSAGE,
@@ -2065,6 +2116,19 @@ MESSAGE_OPTIONS = {
         "record_continuation": CONTINUE_INDICATOR,
         "reminder": WORKER_REMINDER,
     },
+}
+
+# Backwards compatibility for modules importing the old name.
+MESSAGE_OPTIONS = NEXTGEN_MESSAGE_OPTIONS
+
+PLAIN_COORDINATOR_MESSAGE_OPTIONS = copy.deepcopy(NEXTGEN_MESSAGE_OPTIONS)
+PLAIN_COORDINATOR_MESSAGE_OPTIONS["coordinator"] = {
+    "system_message_template": COORDINATOR_PLAIN_SYSTEM_MESSAGE,
+    "first_message_content": COORDINATOR_PLAIN_STARTING_MESSAGE,
+    "historic_messages_start": LOG_PREAMBLE,
+    "historic_messages_last": LAST_WORKER_LOG_PREAMBLE,
+    "coordinator_continuation": CONTINUE_INDICATOR,
+    "reminder": COORDINATOR_PLAIN_REMINDER,
 }
 
 # endregion
@@ -2524,6 +2588,8 @@ class WorkerState(pydantic.BaseModel):
 
 
 class OpenAINextGenEngine(OpenAIEngineBase):
+    MESSAGE_OPTIONS = NEXTGEN_MESSAGE_OPTIONS
+
     def __init__(
         self,
         db: DB,
@@ -2693,7 +2759,7 @@ class OpenAINextGenEngine(OpenAIEngineBase):
                 Message(
                     key=KeyGeneration.generate_message_key(),
                     role="system",
-                    text=MESSAGE_OPTIONS["coordinator"]["historic_messages_start"],
+                    text=self.MESSAGE_OPTIONS["coordinator"]["historic_messages_start"],
                     agent="coordinator",
                 )
             )
@@ -2707,7 +2773,7 @@ class OpenAINextGenEngine(OpenAIEngineBase):
                 Message(
                     key=KeyGeneration.generate_message_key(),
                     role="system",
-                    text=MESSAGE_OPTIONS["coordinator"]["historic_messages_last"],
+                    text=self.MESSAGE_OPTIONS["coordinator"]["historic_messages_last"],
                     agent="coordinator",
                 )
             )
@@ -2720,7 +2786,7 @@ class OpenAINextGenEngine(OpenAIEngineBase):
             Message(
                 key=KeyGeneration.generate_message_key(),
                 role="system",
-                text=MESSAGE_OPTIONS["coordinator"]["coordinator_continuation"],
+                text=self.MESSAGE_OPTIONS["coordinator"]["coordinator_continuation"],
                 agent="coordinator",
             )
         )
@@ -2746,22 +2812,13 @@ Double-check and do not miss out any "skipped" OR "completed" tasks.
         else:
             REMINDER_EXTRA = ""
 
-        if coordinator_state.coordinator_reasoning_stage == "update_subtask_status":
-            REMINDER_EXTRA += """
-### Current reasoning stage:
-Step 1. Reason about what has been completed so far and update subtask statuses.
-"""
-        elif coordinator_state.coordinator_reasoning_stage == "dispatch_next_subtasks":
-            REMINDER_EXTRA += """
-### Current reasoning stage:
-Step 3. Issue the next set of subtasks to the WORKER agent.
-"""
+        REMINDER_EXTRA += self.get_coordinator_stage_reminder(coordinator_state.coordinator_reasoning_stage)
 
         # Reminder message - to avoid going beyond the subtasks.
         reminder_message = Message(
             key=KeyGeneration.generate_message_key(),
             role="system",
-            text=MESSAGE_OPTIONS["coordinator"]["reminder"] + REMINDER_EXTRA,
+            text=self.MESSAGE_OPTIONS["coordinator"]["reminder"] + REMINDER_EXTRA,
             agent="coordinator",
             visibility="llm_only_ephemeral",
             engine_state=self.session.engine_state,
@@ -2776,6 +2833,19 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
             engine_log("--- COORDINATOR messages_to_process [END]")
 
         return messages_to_process, tools
+
+    def get_coordinator_stage_reminder(self, stage: CoordinatorReasoningStage) -> str:
+        if stage == "update_subtask_status":
+            return """
+### Current reasoning stage:
+Step 1. Reason about what has been completed so far and update subtask statuses.
+"""
+        if stage == "dispatch_next_subtasks":
+            return """
+### Current reasoning stage:
+Step 3. Issue the next set of subtasks to the WORKER agent.
+"""
+        return ""
 
     def _gather_messages_worker(self, agent: EngineAgent) -> Tuple[List[Message], ToolSpecs]:
         engine_log("_gather_messages_worker")
@@ -2838,7 +2908,7 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
                 Message(
                     key=KeyGeneration.generate_message_key(),
                     role="system",
-                    text=MESSAGE_OPTIONS["worker"]["record_preamble"],
+                    text=self.MESSAGE_OPTIONS["worker"]["record_preamble"],
                     agent="worker",
                 )
             )
@@ -2851,7 +2921,7 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
             Message(
                 key=KeyGeneration.generate_message_key(),
                 role="system",
-                text=MESSAGE_OPTIONS["worker"]["record_continuation"],
+                text=self.MESSAGE_OPTIONS["worker"]["record_continuation"],
                 agent="worker",
             )
         )
@@ -2860,7 +2930,7 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
 
         # Reminder message - to avoid going beyond the subtasks.
         reminder_message_text = update_templates(
-            body_text=MESSAGE_OPTIONS["worker"]["reminder"],
+            body_text=self.MESSAGE_OPTIONS["worker"]["reminder"],
             templates={
                 WORKER_ACTUAL_TASK_REPLACE_MARKER: str(
                     d2m(msg_w_dc.engine_state.agent_state["worker"], WorkerState).delegated_content  # type: ignore
@@ -3146,8 +3216,8 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
         self.agents_ = AgentStore(
             coordinator=EngineAgent(
                 "coordinator",
-                first_message_content=MESSAGE_OPTIONS["coordinator"]["first_message_content"],
-                system_message_template=MESSAGE_OPTIONS["coordinator"]["system_message_template"],
+                first_message_content=self.MESSAGE_OPTIONS["coordinator"]["first_message_content"],
+                system_message_template=self.MESSAGE_OPTIONS["coordinator"]["system_message_template"],
                 first_message_role="assistant",
                 set_initial_messages=OpenAINextGenEngine._set_initial_messages,  # type: ignore
                 gather_messages=OpenAINextGenEngine._gather_messages_coordinator,  # type: ignore
@@ -3155,8 +3225,8 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
             ),
             worker=EngineAgent(
                 "worker",
-                system_message_template=MESSAGE_OPTIONS["worker"]["system_message_template"],
-                first_message_content=MESSAGE_OPTIONS["worker"]["first_message_content"],
+                system_message_template=self.MESSAGE_OPTIONS["worker"]["system_message_template"],
+                first_message_content=self.MESSAGE_OPTIONS["worker"]["first_message_content"],
                 first_message_role="assistant",
                 set_initial_messages=OpenAINextGenEngine._set_initial_messages,  # type: ignore
                 gather_messages=OpenAINextGenEngine._gather_messages_worker,  # type: ignore
@@ -3453,6 +3523,25 @@ Step 3. Issue the next set of subtasks to the WORKER agent.
         return message
 
 
+class OpenAINextGenReasoningAblationEngine(OpenAINextGenEngine):
+    MESSAGE_OPTIONS = PLAIN_COORDINATOR_MESSAGE_OPTIONS
+
+    def get_coordinator_stage_reminder(self, stage: CoordinatorReasoningStage) -> str:
+        if stage == "update_subtask_status":
+            return """
+Current request: Return only the JSON-compatible list of updated subtask statuses.
+"""
+        if stage == "dispatch_next_subtasks":
+            return """
+Current request: Return only the JSON-compatible list of the next worker subtask IDs.
+"""
+        return ""
+
+    @staticmethod
+    def get_engine_name() -> str:
+        return "openai_nextgen_reasoning_ablation"
+
+
 class AzureOpenAINextGenEngine(
     AzureOpenAIEngineMixin,  # Mixing needs to come first to override the methods correctly.
     OpenAINextGenEngine,
@@ -3487,3 +3576,36 @@ class AzureOpenAINextGenEngine(
     @staticmethod
     def get_engine_name() -> str:
         return "azure_openai_nextgen"
+
+
+class AzureOpenAINextGenReasoningAblationEngine(
+    AzureOpenAIEngineMixin,
+    OpenAINextGenReasoningAblationEngine,
+):
+    def __init__(
+        self,
+        db: DB,
+        session: Session,
+        conda_path: Optional[str] = None,
+        *,
+        api_key: str,
+        azure_openai_config: AzureOpenAIConfig,
+        # ---
+        **kwargs: Any,
+    ):
+        AzureOpenAIEngineMixin.__init__(
+            self,
+            azure_openai_config=azure_openai_config,
+        )
+        OpenAINextGenReasoningAblationEngine.__init__(
+            self,
+            db=db,
+            session=session,
+            conda_path=conda_path,
+            api_key=api_key,
+            **kwargs,
+        )
+
+    @staticmethod
+    def get_engine_name() -> str:
+        return "azure_openai_nextgen_reasoning_ablation"

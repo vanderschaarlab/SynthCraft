@@ -1,4 +1,5 @@
 import copy
+import json
 import re
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
@@ -23,13 +24,16 @@ from climb.db import DB
 from climb.tool import list_all_tool_names, list_all_tool_specs
 
 from ._azure_config import (
+    AZURE_OPENAI_CONFIG_PATH,
     AzureOpenAIConfig,
+    load_azure_openai_configs,
 )
 from ._code_execution import code_extract, is_code_generated
 from ._engine import (
     ChunkTracker,
     EngineAgent,
     LoadingIndicator,
+    PrivacyModeParameter,
     StreamLike,
     tree_helpers,
 )
@@ -90,6 +94,7 @@ EPISODE_DB_REPLACE_MARKER = "{EPISODE_DB}"
 PLAN_REPLACE_MARKER = "{PLAN}"
 PLAN_COMPLETED_REPLACE_MARKER = "{PLAN_COMPLETED}"
 PLAN_REMAINING_REPLACE_MARKER = "{PLAN_REMAINING}"
+PLAN_AT_START_REPLACE_MARKER = "{PLAN_AT_START}"
 LAST_EPISODE_REPLACE_MARKER = "{LAST_EPISODE}"
 REASONING_STEP_REPLACE_MARKER = "{REASONING_STEP}"
 
@@ -1294,6 +1299,49 @@ For your information, do not send this to the user
 
 COORDINATOR_STARTING_MESSAGE = "Now proceed with the planning process as instructed."
 
+ABLATION_WORKER_SYSTEM_MESSAGE = f"""
+You are a single powerful AI copilot working directly with the user on their medical machine learning project.
+There is no predefined episodic plan—you reason freely about what should happen next, propose the next steps, and
+execute them using tools or generated code when appropriate.
+
+How to behave:
+- Start by clarifying the user's goals, available data, and constraints. Offer strategic suggestions whenever the user
+  seems unsure about what to do next.
+- Proactively propose concrete next steps (e.g. upload/inspect data, run EDA, prepare features, train models,
+  evaluate synthetic data, summarize findings, write reports). Choose the most sensible action based on the
+  conversation history.
+- Ask concise follow-up questions when you need more information, and provide short, clear explanations of your
+  reasoning so the user can follow why you suggest a step.
+- Use the available tools or code generation whenever they will accelerate progress. You may summon any tool shown in
+  your tool list without extra permission. Remember you can always call the dataset upload tool if data is missing.
+- Keep track of files in the working directory and reuse previously created artifacts instead of re-running work.
+- Respect the privacy-mode instructions below at all times.
+
+CURRENT WORKING DIRECTORY CONTENTS (for your information only):
+```text
+{WD_CONTENTS_REPLACE_MARKER}
+```
+
+{PRIVACY_MODE_SECTION_INDICATOR_CAPABILITIES}
+
+{PRIVACY_MODE_SECTION_INDICATOR_RULES_1}
+
+Rule C1. {PRIVACY_MODE_SECTION_INDICATOR_RULES_2}
+"""
+
+ABLATION_WORKER_STARTING_MESSAGE = """
+Hi! I'm your research copilot. Tell me about your data or goals, and I'll suggest what to do next.
+"""
+
+
+ABLATION_MESSAGE_OPTIONS = {
+    "worker": {
+        "system_message_template": ABLATION_WORKER_SYSTEM_MESSAGE,
+        "first_message_content": ABLATION_WORKER_STARTING_MESSAGE,
+    }
+}
+
+
 WORKER_RULES = f"""
 #### Interacting with the user:
 Generally:
@@ -1859,7 +1907,7 @@ the {TASK_STOPPED_INDICATOR}. The coordinator will decide on the next steps.
         * E.g. if you are slightly modifying "data_processed.csv", save the modified file as "data_processed_v2.csv".
 """
 
-MESSAGE_OPTIONS = {
+SYNTHETIC_MESSAGE_OPTIONS = {
     # ------------------------------------------------------------------------------------------------------------------
     "coordinator": {
         "system_message_template": COORDINATOR_SYSTEM_MESSAGE,
@@ -1878,6 +1926,48 @@ MESSAGE_OPTIONS = {
         "reminder": WORKER_REMINDER,
     },
 }
+
+PLAIN_COORDINATOR_MESSAGE_OPTIONS = copy.deepcopy(SYNTHETIC_MESSAGE_OPTIONS)
+
+
+DEEPSEEK_COORDINATOR_GUARDRAIL = f"""
+==================== SYNTHETIC DATA PROJECT GUARDRAILS ====================
+- Respond **only in English**.
+- You MUST stay on the clinical / data-science project described in the plan.
+- NEVER output generic programming puzzles, LeetCode-style explanations, or unrelated computer-science content.
+- Follow the 4-step reasoning workflow exactly; emit each step as its own message using the required markers such as
+  {BACKTRACKING_MARKER}, {NO_BACKTRACKING_MARKER}, {PLAN_UPDATE_MARKER}, {NO_PLAN_UPDATE_MARKER}, and {PROJECT_END_MARKER}.
+- Whenever you are unsure, restate these guardrails and continue with the correct step rather than inventing a
+  different task.
+==========================================================================
+"""
+
+DEEPSEEK_WORKER_GUARDRAIL = f"""
+==================== SYNTHETIC DATA PROJECT GUARDRAILS ====================
+- Respond **only in English** and stick to the TASK issued by the coordinator.
+- Do **not** create or solve interview / LeetCode problems or unrelated algorithm drills.
+- Every response must either advance the assigned clinical ML task, request required input, or explicitly return
+  {TASK_COMPLETED_INDICATOR} / {TASK_STOPPED_INDICATOR} per the rules.
+- If the user attempts to derail you into an unrelated topic, politely redirect back to the task or stop with
+  {TASK_STOPPED_INDICATOR}.
+==========================================================================
+"""
+
+DEEPSEEK_MESSAGE_OPTIONS = copy.deepcopy(SYNTHETIC_MESSAGE_OPTIONS)
+DEEPSEEK_MESSAGE_OPTIONS["coordinator"]["system_message_template"] = (
+    COORDINATOR_SYSTEM_MESSAGE + DEEPSEEK_COORDINATOR_GUARDRAIL
+)
+DEEPSEEK_MESSAGE_OPTIONS["coordinator"]["reminder"] = (
+    COORDINATOR_REMINDER
+    + "\n\n**DeepSeek-specific reminder:** Follow the guardrails above verbatim and keep all analysis tied to the PLAN."
+)
+DEEPSEEK_MESSAGE_OPTIONS["worker"]["system_message_template"] = (
+    WORKER_SYSTEM_MESSAGE + DEEPSEEK_WORKER_GUARDRAIL
+)
+DEEPSEEK_MESSAGE_OPTIONS["worker"]["reminder"] = (
+    WORKER_REMINDER
+    + "\n\n**DeepSeek-specific reminder:** Stay on the assigned task, reply in English, and avoid unrelated coding puzzles."
+)
 
 # endregion
 
@@ -2451,6 +2541,7 @@ class WorkerCotState(pydantic.BaseModel):
     # If DEBUG__USE_FILTER_TOOLS is True, default to an empty list (no tools)
     # If DEBUG__USE_FILTER_TOOLS is False, default to None (all tools)
     delegated_tools: Optional[List[str]] = [] if DEBUG__USE_FILTER_TOOLS else None
+    current_episode_id: Optional[str] = None
 
 
 # NOTE:
@@ -2468,6 +2559,7 @@ EXCLUDE_FULL = ADDITIONAL_TOOLS["extra"]
 
 
 class OpenAISyntheticEngine(OpenAIEngineBase):
+    MESSAGE_OPTIONS = SYNTHETIC_MESSAGE_OPTIONS
     def __init__(
         self,
         db: DB,
@@ -2599,6 +2691,9 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
             print("PLAN after filtering out episodes with excluded tools:")
             rich.pretty.pprint(self.plan)
 
+        # Store the initial plan representation for ablation prompts.
+        self.initial_plan_display = format_episodes_id_name(self.episode_db, self.plan)
+
         # NOTE: Anywhere else in this engine, use self.episode_db and self.plan, not EPISODE_DB and PLAN!
         # === Set up tool & episode filtering. (END) ===
 
@@ -2641,6 +2736,7 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
             body_text=agent.system_message_template,
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
+                PLAN_AT_START_REPLACE_MARKER: getattr(self, "initial_plan_display", format_episodes_id_name(self.episode_db, self.plan)),
                 EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(self.episode_db),
                 PLAN_REPLACE_MARKER: format_episodes_id_name(self.episode_db, self.plan),
                 PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(self.episode_db, completed_episodes),
@@ -2733,6 +2829,7 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
             body_text=agent.system_message_template,
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
+                PLAN_AT_START_REPLACE_MARKER: getattr(self, "initial_plan_display", format_episodes_id_name(self.episode_db, self.plan)),
                 EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(self.episode_db),
                 PLAN_REPLACE_MARKER: format_episodes_id_name(self.episode_db, self.get_current_plan()),
                 PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(self.episode_db, completed_episodes),
@@ -2807,7 +2904,7 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
                 Message(
                     key=KeyGeneration.generate_message_key(),
                     role="system",
-                    text=MESSAGE_OPTIONS["coordinator"]["historic_messages_start"],
+                    text=self.MESSAGE_OPTIONS["coordinator"]["historic_messages_start"],
                     agent="coordinator",
                 )
             )
@@ -2821,7 +2918,7 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
                 Message(
                     key=KeyGeneration.generate_message_key(),
                     role="system",
-                    text=MESSAGE_OPTIONS["coordinator"]["historic_messages_last"],
+                    text=self.MESSAGE_OPTIONS["coordinator"]["historic_messages_last"],
                     agent="coordinator",
                 )
             )
@@ -2834,7 +2931,7 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
             Message(
                 key=KeyGeneration.generate_message_key(),
                 role="system",
-                text=MESSAGE_OPTIONS["coordinator"]["coordinator_continuation"],
+                text=self.MESSAGE_OPTIONS["coordinator"]["coordinator_continuation"],
                 agent="coordinator",
             )
         )
@@ -2846,9 +2943,10 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
             self.get_current_plan(), self.get_current_last_episode()
         )
         reminder_message_text = update_templates(
-            body_text=MESSAGE_OPTIONS["coordinator"]["reminder"],
+            body_text=self.MESSAGE_OPTIONS["coordinator"]["reminder"],
             templates={
                 WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
+                PLAN_AT_START_REPLACE_MARKER: getattr(self, "initial_plan_display", format_episodes_id_name(self.episode_db, self.plan)),
                 EPISODE_DB_REPLACE_MARKER: rich.pretty.pretty_repr(self.episode_db),
                 PLAN_REPLACE_MARKER: format_episodes_id_name(self.episode_db, self.get_current_plan()),
                 PLAN_COMPLETED_REPLACE_MARKER: format_episodes_id_name(self.episode_db, completed_episodes),
@@ -2999,7 +3097,7 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
                 Message(
                     key=KeyGeneration.generate_message_key(),
                     role="system",
-                    text=MESSAGE_OPTIONS["worker"]["record_preamble"],
+                    text=self.MESSAGE_OPTIONS["worker"]["record_preamble"],
                     agent="worker",
                 )
             )
@@ -3014,7 +3112,7 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
             Message(
                 key=KeyGeneration.generate_message_key(),
                 role="system",
-                text=MESSAGE_OPTIONS["worker"]["record_continuation"],
+                text=self.MESSAGE_OPTIONS["worker"]["record_continuation"],
                 agent="worker",
             )
         )
@@ -3023,7 +3121,7 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
 
         # Reminder message - to avoid going beyond the subtasks.
         reminder_message_text = update_templates(
-            body_text=MESSAGE_OPTIONS["worker"]["reminder"],
+            body_text=self.MESSAGE_OPTIONS["worker"]["reminder"],
             templates={
                 WORKER_ACTUAL_TASK_REPLACE_MARKER: str(
                     d2m(msg_w_dc.engine_state.agent_state["worker"], WorkerCotState).delegated_content  # type: ignore
@@ -3287,6 +3385,7 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
                 # Prepare everything for the worker.
                 worker_state = d2m(self.get_state().agent_state["worker"], WorkerCotState)
                 worker_state.delegated_content = worker_actual_task
+                worker_state.current_episode_id = next_episode
                 if DEBUG__USE_FILTER_TOOLS:
                     worker_state.delegated_tools = delegated_tools
                 self.session.engine_state.agent_state["worker"] = m2d(worker_state)
@@ -3353,8 +3452,8 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
         self.agents_ = AgentStore(
             coordinator=EngineAgent(
                 "coordinator",
-                first_message_content=MESSAGE_OPTIONS["coordinator"]["first_message_content"],
-                system_message_template=MESSAGE_OPTIONS["coordinator"]["system_message_template"],
+                first_message_content=self.MESSAGE_OPTIONS["coordinator"]["first_message_content"],
+                system_message_template=self.MESSAGE_OPTIONS["coordinator"]["system_message_template"],
                 first_message_role="assistant",
                 set_initial_messages=OpenAISyntheticEngine._set_initial_messages,  # type: ignore
                 gather_messages=OpenAISyntheticEngine._gather_messages_coordinator,  # type: ignore
@@ -3362,8 +3461,8 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
             ),
             worker=EngineAgent(
                 "worker",
-                system_message_template=MESSAGE_OPTIONS["worker"]["system_message_template"],
-                first_message_content=MESSAGE_OPTIONS["worker"]["first_message_content"],
+                system_message_template=self.MESSAGE_OPTIONS["worker"]["system_message_template"],
+                first_message_content=self.MESSAGE_OPTIONS["worker"]["first_message_content"],
                 first_message_role="assistant",
                 set_initial_messages=OpenAISyntheticEngine._set_initial_messages,  # type: ignore
                 gather_messages=OpenAISyntheticEngine._gather_messages_worker,  # type: ignore
@@ -3660,6 +3759,134 @@ class OpenAISyntheticEngine(OpenAIEngineBase):
         return message
 
 
+
+class OpenAISyntheticReasoningAblationEngine(OpenAISyntheticEngine):
+    MESSAGE_OPTIONS = ABLATION_MESSAGE_OPTIONS
+
+    def __init__(
+        self,
+        db: DB,
+        session: Session,
+        conda_path: Optional[str] = None,
+        *,
+        api_key: str,
+        **kwargs: Any,
+    ):
+        super().__init__(
+            db=db,
+            session=session,
+            conda_path=conda_path,
+            api_key=api_key,
+            **kwargs,
+        )
+        # Reset to a simple single-agent state for the ablation mode.
+        self.session.engine_state = EngineState(
+            streaming=False,
+            agent="worker",
+            agent_switched=False,
+            agent_state={
+                "worker": m2d(WorkerCotState()),
+                "coordinator": m2d(
+                    CoordinatorCotState(
+                        coordinator_reasoning_stage="write_observations",
+                        current_plan=copy.deepcopy(self.plan),
+                        last_episode="None",
+                    )
+                ),
+            },
+            ui_controlled=UIControlledState(interaction_stage="reason", input_request=None),
+            user_message_requested=True,
+        )
+
+    def _set_initial_messages(self, agent: EngineAgent) -> List[Message]:
+        system_message_text = update_templates(
+            body_text=agent.system_message_template,
+            templates={
+                WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
+                PRIVACY_MODE_SECTION_INDICATOR_CAPABILITIES: PRIVACY_MODE_SECTION_INDICATOR_CAPABILITIES_MAP[
+                    str(self.session.engine_params["privacy_mode"])
+                ],
+                PRIVACY_MODE_SECTION_INDICATOR_RULES_1: PRIVACY_MODE_SECTION_INDICATOR_RULES_1_MAP[
+                    str(self.session.engine_params["privacy_mode"])
+                ],
+                PRIVACY_MODE_SECTION_INDICATOR_RULES_2: PRIVACY_MODE_SECTION_INDICATOR_RULES_2_MAP[
+                    str(self.session.engine_params["privacy_mode"])
+                ],
+            },
+        )
+
+        initial_messages = [
+            Message(
+                key=KeyGeneration.generate_message_key(),
+                role="system",
+                visibility="llm_only",
+                new_reasoning_cycle=True,
+                text=system_message_text,
+                agent=agent.agent_type,
+            ),
+            Message(
+                key=KeyGeneration.generate_message_key(),
+                role=agent.first_message_role,
+                text=agent.first_message_content,
+                agent=agent.agent_type,
+                visibility="llm_only_ephemeral",
+                engine_state=self.session.engine_state,
+            ),
+        ]
+        tree_helpers.append_multiple_messages_to_end_of_tree(self.session.messages, initial_messages)
+        self.db.update_session(self.session)
+        return initial_messages
+
+    def _gather_messages_worker(self, agent: EngineAgent) -> Tuple[List[Message], ToolSpecs]:
+        messages_to_process = self.get_message_history()
+        system_message_text = update_templates(
+            body_text=agent.system_message_template,
+            templates={
+                WD_CONTENTS_REPLACE_MARKER: self.describe_working_directory_str(),
+                PRIVACY_MODE_SECTION_INDICATOR_CAPABILITIES: PRIVACY_MODE_SECTION_INDICATOR_CAPABILITIES_MAP[
+                    str(self.session.engine_params["privacy_mode"])
+                ],
+                PRIVACY_MODE_SECTION_INDICATOR_RULES_1: PRIVACY_MODE_SECTION_INDICATOR_RULES_1_MAP[
+                    str(self.session.engine_params["privacy_mode"])
+                ],
+                PRIVACY_MODE_SECTION_INDICATOR_RULES_2: PRIVACY_MODE_SECTION_INDICATOR_RULES_2_MAP[
+                    str(self.session.engine_params["privacy_mode"])
+                ],
+            },
+        )
+        messages_to_process[0].text = system_message_text
+
+        if DEBUG__USE_FILTER_TOOLS:
+            tool_names = getattr(self, "allowed_tools", None)
+        else:
+            tool_names = None
+        tools = list_all_tool_specs(filter_tool_names=tool_names)
+        return messages_to_process, tools
+
+    def _dispatch_worker(self, agent: EngineAgent) -> EngineState:
+        last_message = self.get_last_message()
+        self.session.engine_state.user_message_requested = True
+        if last_message.text is not None and GENERATED_CODE_FORMAT_ERROR_MSG in last_message.text:
+            self.session.engine_state.user_message_requested = False
+        return self.session.engine_state
+
+    def define_agents(self) -> Dict[Agent, EngineAgent]:
+        worker_agent = EngineAgent(
+            "worker",
+            system_message_template=self.MESSAGE_OPTIONS["worker"]["system_message_template"],
+            first_message_content=self.MESSAGE_OPTIONS["worker"]["first_message_content"],
+            first_message_role="assistant",
+            set_initial_messages=OpenAISyntheticReasoningAblationEngine._set_initial_messages,  # type: ignore
+            gather_messages=OpenAISyntheticReasoningAblationEngine._gather_messages_worker,  # type: ignore
+            dispatch=OpenAISyntheticReasoningAblationEngine._dispatch_worker,  # type: ignore
+        )
+        return {"worker": worker_agent}
+
+    def define_initial_agent(self) -> Agent:
+        return "worker"
+
+    def project_completed(self) -> bool:
+        return False
 class AzureOpenAISyntheticEngine(
     AzureOpenAIEngineMixin,  # Mixing needs to come first to override the methods correctly.
     OpenAISyntheticEngine,
@@ -3699,3 +3926,232 @@ class AzureOpenAISyntheticEngine(
     @staticmethod
     def get_engine_name() -> str:
         return "azure_openai_synthetic"
+
+
+class AzureOpenAIGPT5SyntheticEngine(AzureOpenAISyntheticEngine):
+    def __init__(
+        self,
+        db: DB,
+        session: Session,
+        conda_path: Optional[str] = None,
+        *,
+        api_key: str,
+        azure_openai_config: AzureOpenAIConfig,
+        **kwargs: Any,
+    ):
+        super().__init__(
+            db=db,
+            session=session,
+            conda_path=conda_path,
+            api_key=api_key,
+            azure_openai_config=azure_openai_config,
+            **kwargs,
+        )
+        self.session.engine_params["temperature"] = 1.0
+
+    @staticmethod
+    def get_engine_parameters() -> List[EngineParameter]:
+        params = copy.deepcopy(AzureOpenAISyntheticEngine.get_engine_parameters())
+        for param in params:
+            if param.name == "temperature":
+                param.default = 1.0
+                param.min_value = 1.0
+                param.max_value = 1.0
+                param.disabled = True
+        return params
+
+    @staticmethod
+    def get_engine_name() -> str:
+        return "azure_openai_synthetic_gpt5"
+
+
+class OpenAIGPT5SyntheticEngine(OpenAISyntheticEngine):
+    @staticmethod
+    def get_engine_parameters() -> List[EngineParameter]:
+        params = copy.deepcopy(OpenAISyntheticEngine.get_engine_parameters())
+        for param in params:
+            if param.name == "model_id":
+                param.default = "gpt-5"
+        return params
+
+    @staticmethod
+    def get_engine_name() -> str:
+        return "openai_synthetic_gpt5"
+
+
+def _get_deepseek_azure_configs() -> List[AzureOpenAIConfig]:
+    configs = load_azure_openai_configs(AZURE_OPENAI_CONFIG_PATH)
+    return [
+        config
+        for config in configs
+        if "deepseek" in config.model.lower() or "deepseek" in config.deployment_name.lower()
+    ]
+
+
+class AzureOpenAIDeepSeekSyntheticEngine(
+    AzureOpenAIEngineMixin,
+    OpenAISyntheticEngine,
+):
+    MESSAGE_OPTIONS = DEEPSEEK_MESSAGE_OPTIONS
+
+    def __init__(
+        self,
+        db: DB,
+        session: Session,
+        conda_path: Optional[str] = None,
+        *,
+        api_key: str,
+        azure_openai_config: AzureOpenAIConfig,
+        **kwargs: Any,
+    ):
+        is_deepseek_cfg = (
+            "deepseek" in azure_openai_config.model.lower()
+            or "deepseek" in azure_openai_config.deployment_name.lower()
+        )
+        if not is_deepseek_cfg:
+            raise ValueError(
+                "AzureOpenAIDeepSeekSyntheticEngine requires an Azure OpenAI config entry for a DeepSeek model."
+            )
+        AzureOpenAIEngineMixin.__init__(
+            self,
+            azure_openai_config=azure_openai_config,
+        )
+        OpenAISyntheticEngine.__init__(
+            self,
+            db=db,
+            session=session,
+            conda_path=conda_path,
+            api_key=api_key,
+            **kwargs,
+        )
+
+    @staticmethod
+    def get_engine_parameters() -> List[EngineParameter]:
+        configs = _get_deepseek_azure_configs()
+        configs_found = bool(configs)
+        config_names = [cfg.name for cfg in configs]
+        model_values = [cfg.model for cfg in configs]
+
+        config_param = EngineParameter(
+            name="config_item_name",
+            description=(
+                f"The `name` field from the Azure OpenAI config file (`{AZURE_OPENAI_CONFIG_PATH}`) "
+                "corresponding to the DeepSeek deployment you want to use."
+            ),
+            kind="enum",
+            enum_values=config_names,
+            default=config_names[0] if configs_found else "",
+            disabled=not configs_found,
+        )
+        model_param = EngineParameter(
+            name="model_id",
+            description=(
+                "OpenAI model ID to use for the research session. "
+                "This is auto-filled from the selected DeepSeek deployment."
+            ),
+            kind="enum",
+            enum_values=model_values,
+            default=model_values[0] if configs_found else "",
+            set_by_static_method="set_model_id",
+            disabled=True,
+        )
+        temperature_param = EngineParameter(
+            name="temperature",
+            description=(
+                "The temperature to use for the research session. "
+                "See https://platform.openai.com/docs/api-reference/chat/create#chat/create-temperature."
+            ),
+            kind="float",
+            default=0.5,
+            min_value=0.0,
+            max_value=1.0,
+            disabled=not configs_found,
+        )
+
+        return [
+            config_param,
+            model_param,
+            temperature_param,
+            PrivacyModeParameter,
+            ToolSetParameter,
+            PossibleEpisodesParam,
+        ]
+
+    @staticmethod
+    def get_engine_name() -> str:
+        return "azure_openai_synthetic_deepseek"
+
+
+class AzureOpenAISyntheticReasoningAblationEngine(
+    AzureOpenAIEngineMixin,
+    OpenAISyntheticReasoningAblationEngine,
+):
+    def __init__(
+        self,
+        db: DB,
+        session: Session,
+        conda_path: Optional[str] = None,
+        *,
+        api_key: str,
+        azure_openai_config: AzureOpenAIConfig,
+        # ---
+        **kwargs: Any,
+    ):
+        AzureOpenAIEngineMixin.__init__(
+            self,
+            azure_openai_config=azure_openai_config,
+        )
+        OpenAISyntheticReasoningAblationEngine.__init__(
+            self,
+            db=db,
+            session=session,
+            conda_path=conda_path,
+            api_key=api_key,
+            **kwargs,
+        )
+
+    @staticmethod
+    def get_engine_parameters() -> List[EngineParameter]:
+        parent_params = AzureOpenAIEngineMixin.get_engine_parameters()
+        return parent_params + [ToolSetParameter, PossibleEpisodesParam]
+
+    @staticmethod
+    def get_engine_name() -> str:
+        return "azure_openai_synthetic_reasoning_ablation"
+
+
+class AzureOpenAIGPT5SyntheticReasoningAblationEngine(AzureOpenAISyntheticReasoningAblationEngine):
+    def __init__(
+        self,
+        db: DB,
+        session: Session,
+        conda_path: Optional[str] = None,
+        *,
+        api_key: str,
+        azure_openai_config: AzureOpenAIConfig,
+        **kwargs: Any,
+    ):
+        super().__init__(
+            db=db,
+            session=session,
+            conda_path=conda_path,
+            api_key=api_key,
+            azure_openai_config=azure_openai_config,
+            **kwargs,
+        )
+        self.session.engine_params["temperature"] = 1.0
+
+    @staticmethod
+    def get_engine_parameters() -> List[EngineParameter]:
+        params = copy.deepcopy(AzureOpenAISyntheticReasoningAblationEngine.get_engine_parameters())
+        for param in params:
+            if param.name == "temperature":
+                param.default = 1.0
+                param.min_value = 1.0
+                param.max_value = 1.0
+                param.disabled = True
+        return params
+
+    @staticmethod
+    def get_engine_name() -> str:
+        return "azure_openai_synthetic_reasoning_ablation_gpt5"

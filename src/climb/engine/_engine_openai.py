@@ -72,7 +72,8 @@ class OpenAIEngineBase(EngineBase):
 
     def _before_define_agents_hook(self) -> None:
         # Useful constants:
-        self.max_tokens_per_message = MODEL_MAX_MESSAGE_TOKENS[self.engine_params["model_id"]]  # type: ignore
+        model_id = str(self.engine_params["model_id"])  # type: ignore
+        self.max_tokens_per_message = MODEL_MAX_MESSAGE_TOKENS.get(model_id, 4_096)
 
     @staticmethod
     def supports_streaming_token_count() -> bool:
@@ -679,6 +680,16 @@ class AzureOpenAIEngineMixin:
     def get_engine_parameters() -> List[EngineParameter]:
         configs = load_azure_openai_configs(AZURE_OPENAI_CONFIG_PATH)
         configs_found = bool(configs)
+        config_item_names = [x.name for x in configs]
+        allowed_lower = {model.lower() for model in ALLOWED_MODELS}
+        extra_models = []
+        for cfg in configs:
+            model_value = cfg.model
+            if model_value.lower() in allowed_lower:
+                continue
+            if model_value not in extra_models:
+                extra_models.append(model_value)
+        model_enum_values = ALLOWED_MODELS + extra_models
         return [
             EngineParameter(
                 name="config_item_name",
@@ -687,8 +698,8 @@ class AzureOpenAIEngineMixin:
                     "corresponding to the model you want to use."
                 ),
                 kind="enum",
-                enum_values=[x.name for x in configs],
-                default=[x.name for x in configs][0] if configs_found else "",
+                enum_values=config_item_names,
+                default=config_item_names[0] if configs_found else "",
                 disabled=not configs_found,
             ),
             EngineParameter(
@@ -698,8 +709,8 @@ class AzureOpenAIEngineMixin:
                     "See [documentation](https://platform.openai.com/docs/models/overview)."
                 ),
                 kind="enum",
-                enum_values=ALLOWED_MODELS,
-                default="gpt-4-0125-preview",
+                enum_values=model_enum_values,
+                default=model_enum_values[0] if model_enum_values else "",
                 set_by_static_method="set_model_id",
                 disabled=True,
             ),

@@ -302,10 +302,17 @@ def estimate_prompt_tokens_with_tools(
         tokens_per_message = 3
         tokens_per_name = 1
     else:
-        raise NotImplementedError(f"""num_tokens_from_messages() is not implemented for model {model}.""")
+        if model.startswith("gpt-5"):
+            tokens_per_message = 3
+            tokens_per_name = 1
+        else:
+            raise NotImplementedError(f"""num_tokens_from_messages() is not implemented for model {model}.""")
 
     # Get encoding for model.
-    encoding = tiktoken.encoding_for_model(model)
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        encoding = tiktoken.get_encoding("cl100k_base")
     # print(f"Using encoding {encoding.name} for model {model}.")
 
     if not function_definitions:

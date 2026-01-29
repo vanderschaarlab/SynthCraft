@@ -1102,7 +1102,8 @@ with main_col_2:
                         col2_txt += f"- `{param}`: `{engine().engine_params[param]}`\n"
                     st.markdown(col2_txt)
 
-            context_size = MODEL_CONTEXT_SIZE[engine().engine_params["model_id"]]  # type: ignore
+            model_id = str(engine().engine_params["model_id"])
+            context_size = MODEL_CONTEXT_SIZE.get(model_id, 128_000)  # type: ignore
             token_counts = engine().get_token_counts()
             token_counts_show = dict()
             for key, value in token_counts.items():

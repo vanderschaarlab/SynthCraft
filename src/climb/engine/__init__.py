@@ -16,7 +16,22 @@ from ._engine import (
 )
 from ._initialization import ENGINE_MAP, create_engine
 from .const import ALLOWED_MODELS, MODEL_CONTEXT_SIZE, MODEL_MAX_MESSAGE_TOKENS
-from .engine_openai_nextgen import AzureOpenAINextGenEngine, OpenAINextGenEngine
+from .engine_openai_nextgen import (
+    AzureOpenAINextGenEngine,
+    AzureOpenAINextGenReasoningAblationEngine,
+    OpenAINextGenEngine,
+    OpenAINextGenReasoningAblationEngine,
+)
+from .engine_openai_synthetic import (
+    AzureOpenAIDeepSeekSyntheticEngine,
+    AzureOpenAIGPT5SyntheticEngine,
+    AzureOpenAIGPT5SyntheticReasoningAblationEngine,
+    AzureOpenAISyntheticEngine,
+    AzureOpenAISyntheticReasoningAblationEngine,
+    OpenAIGPT5SyntheticEngine,
+    OpenAISyntheticEngine,
+    OpenAISyntheticReasoningAblationEngine,
+)
 from .engine_openai_sim import AzureOpenAINextGenEngineSim, OpenAINextGenEngineSim
 
 __all__ = [
@@ -24,7 +39,14 @@ __all__ = [
     "AZURE_OPENAI_CONFIG_PATH",
     "AzureOpenAIConfig",
     "AzureOpenAINextGenEngine",
+    "AzureOpenAINextGenReasoningAblationEngine",
     "AzureOpenAINextGenEngineSim",
+    "AzureOpenAIDeepSeekSyntheticEngine",
+    "AzureOpenAIGPT5SyntheticEngine",
+    "AzureOpenAIGPT5SyntheticReasoningAblationEngine",
+    "AzureOpenAISyntheticEngine",
+    "AzureOpenAISyntheticReasoningAblationEngine",
+    "OpenAIGPT5SyntheticEngine",
     "ChunkSentinel",
     "ChunkTracker",
     "CodeExecFinishedSentinel",
@@ -40,7 +62,10 @@ __all__ = [
     "MODEL_CONTEXT_SIZE",
     "MODEL_MAX_MESSAGE_TOKENS",
     "OpenAINextGenEngine",
+    "OpenAINextGenReasoningAblationEngine",
     "OpenAINextGenEngineSim",
+    "OpenAISyntheticEngine",
+    "OpenAISyntheticReasoningAblationEngine",
     "PRIVACY_MODE_PARAMETER_DESCRIPTION",
     "StreamLike",
 ]

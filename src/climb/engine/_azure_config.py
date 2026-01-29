@@ -23,8 +23,17 @@ class AzureOpenAIConfig(pydantic.BaseModel):
     @classmethod
     # pylint: disable-next=unused-argument
     def check_allowed_model(cls, v: str, info: pydantic.ValidationInfo) -> str:
-        assert v in ALLOWED_MODELS, f"Model must be one of: {ALLOWED_MODELS}"
-        return v
+        allowed_models = {model.lower() for model in ALLOWED_MODELS}
+        val_lower = v.lower()
+        if val_lower in allowed_models:
+            return v
+        if "deepseek" in val_lower:
+            return v
+        if "gpt-5" in val_lower:
+            return v
+        raise AssertionError(
+            f"Model must be one of: {ALLOWED_MODELS} or contain 'deepseek'/'gpt-5'"
+        )
 
 
 def load_azure_openai_configs(config_path: str) -> List[AzureOpenAIConfig]:
